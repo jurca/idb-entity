@@ -1,0 +1,36 @@
+{
+  "name": "idb-entity",
+  "version": "0.0.0",
+  "description": "Entity manager for the HTML5 IndexedDB",
+  "main": "es2015/EntityManagerFactory.js",
+  "scripts": {
+    "test": "./node_modules/karma/bin/karma start test/karma.conf.js --single-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jurca/idb-entity.git"
+  },
+  "keywords": [
+    "indexeddb",
+    "indexed-db.es6",
+    "html5",
+    "es6",
+    "es2015"
+  ],
+  "author": "Martin Jurča <mjurca@centrum.cz>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jurca/idb-entity/issues"
+  },
+  "browserify": {
+    "transform": [
+      "babelify"
+    ]
+  },
+  "devDependencies": {
+    "indexed-db.es6": "^0.4.2"
+  },
+  "peerDependencies": {
+    "indexed-db.es6": "^0.4.2"
+  }
+}
