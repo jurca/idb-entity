@@ -13,7 +13,7 @@ import {
  *
  * @type {Object<string, symbol>}
  */
-const PRIVATE = Object.create({
+const PRIVATE = Object.freeze({
   // fields
   entityManager: Symbol("entityManager"),
   entities: Symbol("entities"),
