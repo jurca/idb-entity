@@ -255,8 +255,8 @@ export default class Transaction {
   /**
    * Deletes the specified entity.
    *
-   * @param {function(new: AbstractEntity, object<>)} entityClass The entity
-   *        class specifying the type of the entity to delete.
+   * @param {function(new: AbstractEntity, Object<string, *>)} entityClass The
+   *        entity class specifying the type of the entity to delete.
    * @param {(number|string|Date|Array)} primaryKey The primary key identifying
    *        the entity to delete.
    * @return {Promise<undefined>} A promise that resolves when the record has
@@ -353,7 +353,8 @@ export default class Transaction {
    * Executes a delete query, deleting all entities matched by the specified
    * query.
    *
-   * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
+   * @param {function(new: AbstractEntity, Object<string, *>)} entityClass The
+   *        entity class specifying the type of entity to match by the query.
    * @param {?(undefined|number|string|Date|Array|IDBKeyRange|Object<string, (number|string|Date|Array|IDBKeyRange)>|function(*, (number|string|Date|Array)): boolean)=} filter
    *        The filter, restricting the records deleted by this method. If a
    *        function is provided, the first argument will be set to the record
