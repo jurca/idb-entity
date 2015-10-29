@@ -46,7 +46,7 @@ export default class Transaction {
    *        Registry of currently managed entities. The registry is a map of
    *        entity classes to a map of serialized entity primary keys to entity
    *        source data and entity instances.
-   * @param {function(function(new: T, Object<string, *>), (string|string[]), Object<string, *>): T} manageEntity
+   * @param {function(function(new: AbstractEntity, Object<string, *>), (string|string[]), Object<string, *>): AbstractEntity} manageEntity
    *        A callback provided by the entity manager to create a managed
    *        entity out of a record, or to retrieve an already managed entity
    *        representing the record.
@@ -390,7 +390,7 @@ export default class Transaction {
             Promise.all(records.map((record) => {
               let primaryKey = getPrimaryKey(record, keyPath)
               return objectStore.delete(primaryKey).then(() => {
-                this[PRIVATE.detachEntity](entityClass, primaryKey)
+                this[PRIVATE.entityManager].detach(entityClass, primaryKey)
               })
             })).then(resolve).catch(reject)
           }).catch(reject)
