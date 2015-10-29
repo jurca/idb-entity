@@ -82,7 +82,7 @@ export default class EntityManager {
       return false
     }
 
-    let keysToEntities = this[PRIVATE.entities]
+    let keysToEntities = this[PRIVATE.entities].get(entityClass)
     let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass)
     let primaryKey = getPrimaryKey(entity, keyPath)
     let serializedKey = serializeKey(primaryKey)
@@ -91,6 +91,18 @@ export default class EntityManager {
     }
 
     return keysToEntities.get(serializeKey(serializedKey)).entity === entity
+  }
+
+  containsByPrimaryKey(entityClass, primaryKey) {
+    if (!this[PRIVATE.entities].has(entityClass)) {
+      return false
+    }
+
+    let keysToEntities = this[PRIVATE.entities].get(entityClass)
+    let serializedKey = serializeKey(primaryKey)
+    if (!keysToEntities.has(serializeKey(serializedKey))) {
+      return false
+    }
   }
 
   /**
@@ -112,6 +124,8 @@ export default class EntityManager {
     
     let storeName = entityClass.objectStore
     let keyPath
+
+    // TODO: search the local persistence context first before fetching
 
     return this[PRIVATE.connection].then((database) => {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
