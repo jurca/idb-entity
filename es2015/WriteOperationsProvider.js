@@ -1,5 +1,5 @@
 
-import {validateEntityClass, setPrimaryKey} from "./utils"
+import {validateEntityClass, setPrimaryKey, getPrimaryKey} from "./utils"
 
 /**
  * Private field and method symbols.
@@ -192,7 +192,7 @@ export default class WriteOperationsProvider {
     validateEntityClass(entityClass)
 
     let objectStoreName = entityClass.objectStore
-    let objectStore = transaction.getObjectStore(objectStoreName)
+    let objectStore = this[PRIVATE.transaction].getObjectStore(objectStoreName)
     let keyPath = objectStore.keyPath
 
     return new Promise((resolve, reject) => {
@@ -200,7 +200,13 @@ export default class WriteOperationsProvider {
         return Promise.all(records.map((record) => {
           let primaryKey = getPrimaryKey(record, keyPath)
           return objectStore.delete(primaryKey).then(() => {
-            this[PRIVATE.entityManager].detach(entityClass, primaryKey)
+            let entityManager = this[PRIVATE.entityManager]
+            if (!entityManager.containsByPrimaryKey(entityClass, primaryKey)) {
+              return
+            }
+
+            let entity = entityManager.find(entityClass, primaryKey)
+            entityManager.detach(entity)
           })
         }))
       }).then(resolve).catch(reject)
