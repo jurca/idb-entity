@@ -360,8 +360,8 @@ export default class Transaction {
    * promise.
    *
    * @template R
-   * @param {function(WriteOperationsProvider): Promise<R>} operation The
-   *        operation to execute.
+   * @param {function(WriteOperationsProvider): (Promise<R>|PromiseSync<R>)} operation
+   *        The operation to execute.
    * @return {Promise<R>} A promise resolved when the operation has completed.
    */
   [PRIVATE.runOperation](operation) {
