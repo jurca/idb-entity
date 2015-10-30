@@ -21,7 +21,7 @@ export default class WriteOperationsProvider {
    * Initializes the provider of the read-write operations for the persistence
    * context.
    *
-   * @param {Transaction} transaction The current IndexedDB.ES6 read-write
+   * @param {Transaction} transaction The current indexed-db.es6 read-write
    *        transaction to use to perform the read-write operations.
    * @param {function(function(new: AbstractEntity, Object<string, *>), (string|string[]), Object<string, *>): AbstractEntity} manageEntity
    *        A callback, provided by the entity manager, used to create a
@@ -33,7 +33,7 @@ export default class WriteOperationsProvider {
    */
   constructor(transaction, manageEntity, entityManager) {
     /**
-     * The current IndexedDB.ES6 read-write transaction to use to perform the
+     * The current indexed-db.es6 read-write transaction to use to perform the
      * read-write operations.
      *
      * @type {Transaction}
