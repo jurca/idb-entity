@@ -1,7 +1,8 @@
 
 import {validateEntityClass, getPrimaryKey, clone, serializeKey} from "./utils"
-import Transaction from "./Transaction"
 import AbstractEntity from "./AbstractEntity"
+import Transaction from "./Transaction"
+import TransactionRunner from "./TransactionRunner"
 
 /**
  * Private field and method symbols.
@@ -13,6 +14,7 @@ const PRIVATE = Object.freeze({
   connection: Symbol("connection"),
   entities: Symbol("entities"),
   entityKeyPaths: Symbol("entityKeyPaths"),
+  rwTransactionRunner: Symbol("rwTransactionRunner"),
   activeTransaction: Symbol("activeTransaction"),
 
   //methods
@@ -59,12 +61,21 @@ export default class EntityManager {
     this[PRIVATE.entityKeyPaths] = entityKeyPaths
 
     /**
+     * The promise that will resolve to the transaction for the currently
+     * active indexed-db.es6 read-write transaction. This field is set only if
+     * a read-write transaction has been started and has not ended yet.
+     *
+     * @type {?Promise<TransactionRunner>}
+     */
+    this[PRIVATE.rwTransactionRunner] = null
+
+    /**
      * The currently active read-write database-wide transaction on this entity
      * manager.
      *
      * @type {?Transaction}
      */
-    this[PRIVATE.activeTransaction] = false
+    this[PRIVATE.activeTransaction] = null
   }
 
   /**
@@ -318,19 +329,25 @@ export default class EntityManager {
    *         this entity manager.
    */
   startTransaction() {
-    if (this[PRIVATE.activeTransaction]) {
+    if (this[PRIVATE.rwTransactionRunner]) {
       throw new Error("This entity manager is already running a transaction")
     }
 
+    this[PRIVATE.rwTransactionRunner] = this[PRIVATE.connection].then((db) => {
+      let transaction = db.startTransaction(db.objectStoreNames)
+      return new TransactionRunner(transaction, db.objectStoreNames[0])
+    })
+
     this[PRIVATE.activeTransaction] = new Transaction(
       this,
-      this[PRIVATE.connection],
+      this[PRIVATE.rwTransactionRunner],
       this[PRIVATE.entities],
       (entityClass, keyPath, entityData) => {
         return this[PRIVATE.manage](entityClass, keyPath, entityData)
       },
       () => {
         this[PRIVATE.activeTransaction] = null
+        this[PRIVATE.rwTransactionRunner] = null
       }
     )
 

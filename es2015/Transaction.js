@@ -7,6 +7,7 @@ import {
   clone,
   equals
 } from "./utils"
+import WriteOperationsProvider from "./WriteOperationsProvider"
 
 /**
  * Private field and method symbols.
@@ -16,18 +17,16 @@ import {
 const PRIVATE = Object.freeze({
   // fields
   entityManager: Symbol("entityManager"),
+  transactionRunnerPromise: Symbol("transactionRunnerPromise"),
+  transactionRunner: Symbol("transactionRunner"),
   entities: Symbol("entities"),
   manageEntity: Symbol("manageEntity"),
   completionCallback: Symbol("completionCallback"),
-  pendingOperations: Symbol("pendingOperations"),
-  transaction: Symbol("transaction"),
   active: Symbol("active"),
-  aborted: Symbol("aborted"),
 
   // methods
-  initTransactionRunner: Symbol("initTransactionRunner"),
-  executedPendingOperations: Symbol("executedPendingOperations"),
-  detachEntity: Symbol("detachEntity")
+  getOperationsProvider: Symbol("getOperationsProvider"),
+  runOperation: Symbol("runOperation")
 })
 
 /**
@@ -40,8 +39,8 @@ export default class Transaction {
    *
    * @param {EntityManager} entityManager The entity manager owning this
    *        transaction.
-   * @param {Promise<Database>} connection The promise that will resolve to a
-   *        connection to the database.
+   * @param {Promise<TransactionRunner>} transactionRunnerPromise The promise
+   *        that will resolve to a transaction runner for this transaction.
    * @param {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>} entities
    *        Registry of currently managed entities. The registry is a map of
    *        entity classes to a map of serialized entity primary keys to entity
@@ -54,7 +53,7 @@ export default class Transaction {
    *        manager to invoke one this transaction has been completed, either
    *        by committing, or aborting it.
    */
-  constructor(entityManager, connection, entities, manageEntity,
+  constructor(entityManager, transactionRunnerPromise, entities, manageEntity,
       completionCallback) {
     /**
      * The entity manager owning this transaction.
@@ -62,6 +61,23 @@ export default class Transaction {
      * @type {EntityManager}
      */
     this[PRIVATE.entityManager] = entityManager
+
+    /**
+     * The promise that will resolve to a transaction runner for this
+     * transaction.
+     *
+     * @type {Promise<TransactionRunner>}
+     */
+    this[PRIVATE.transactionRunnerPromise] = transactionRunnerPromise
+
+    /**
+     * The current transaction runner keeping the transaction alive as long as
+     * necessary and executing the operations. The field will be set once the
+     * {@code transactionRunnerPromise} private field is set.
+     *
+     * @type {?TransactionRunner}
+     */
+    this[PRIVATE.transactionRunner] = null
 
     /**
      * Registry of currently managed entities. The registry is a map of entity
@@ -91,29 +107,14 @@ export default class Transaction {
     this[PRIVATE.completionCallback] = completionCallback
 
     /**
-     * A flag signalling whether the transaction is still active.
+     * Flag signalling whether the transaction is still active.
      *
      * @type {boolean}
      */
     this[PRIVATE.active] = true
 
-    /**
-     * A flag signalling whether the transaction has been aborted.
-     *
-     * @type {boolean}
-     */
-    this[PRIVATE.aborted] = false
-
-    /**
-     * The operations scheduled to be executed in this transaction as soon as
-     * the keep-alive operation is resolved.
-     *
-     * @type {function(Transaction)[]}
-     */
-    this[PRIVATE.pendingOperations] = []
-
-    connection.then((database) => {
-      this[PRIVATE.initTransactionRunner](database)
+    transactionRunnerPromise.then((transactionRunner) => {
+      this[PRIVATE.transactionRunner] = transactionRunner
     })
   }
 
@@ -130,10 +131,17 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    if (!this[PRIVATE.transaction]) {
-      return new Promise((resolve) => {
-        setTimeout(resolve, 0)
-      }).then(() => this.commit())
+    this[PRIVATE.active] = false
+
+    if (!this[PRIVATE.transactionRunner]) {
+      return this[PRIVATE.transactionRunnerPromise].then(() => {
+        this[PRIVATE.active] = true
+        return this.commit()
+      })
+    }
+
+    if (!this[PRIVATE.transactionRunner].isActive) {
+      throw new Error("The transaction is no longer active")
     }
 
     // save the modified entities
@@ -143,7 +151,7 @@ export default class Transaction {
           continue // the entity has not been modified
         }
 
-        this[PRIVATE.pendingOperations].push((transaction) => {
+        this[PRIVATE.transactionRunner].queueOperation((transaction) => {
           let objectStoreName = entity.constructor.objectStore
           let objectStore = transaction.getObjectStore(objectStoreName)
           objectStore.put(entity)
@@ -151,9 +159,7 @@ export default class Transaction {
       }
     }
 
-    this[PRIVATE.active] = false
-
-    return this[PRIVATE.transaction].completionPromise.then(() => {
+    return this[PRIVATE.transactionRunner].commit().then(() => {
       // update the copy of persisted data in the entity manager
       for (let entities of this[PRIVATE.entities].values()) {
         for (let dataAndEntity of entities.values()) {
@@ -178,23 +184,24 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    if (!this[PRIVATE.transaction]) {
-      return new Promise((resolve) => {
-        setTimeout(resolve, 0)
-      }).then(() => this.abort())
+    this[PRIVATE.active] = false
+
+    if (!this[PRIVATE.transactionRunner]) {
+      return this[PRIVATE.transactionRunnerPromise].then(() => {
+        this[PRIVATE.active] = true
+        return this.abort()
+      })
     }
 
-    this[PRIVATE.active] = false
-    this[PRIVATE.aborted] = true
+    if (!this[PRIVATE.transactionRunner].isActive) {
+      throw new Error("The transaction is no longer active")
+    }
 
-    let unexpectedEnd = false
-    this[PRIVATE.transaction].abort()
-    return this[PRIVATE.transaction].completionPromise.then(() => {
-      unexpectedEnd = true
+    return this[PRIVATE.transactionRunner].abort().then(() => {
       throw new Error("Unexpected transaction end. Has the transaction " +
           "been already committed?")
     }).catch((error) => {
-      if (unexpectedEnd) {
+      if (error.name === "Error") {
         throw error
       }
 
@@ -232,23 +239,8 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    validateEntityClass(entity.constructor)
-    let objectStoreName = entity.constructor.objectStore
-
-    return new Promise((resolve, reject) => {
-      this[PRIVATE.pendingOperations].push((transaction) => {
-        try {
-          let objectStore = transaction.getObjectStore(objectStoreName)
-          let keyPath = objectStore.keyPath
-
-          objectStore.add(entity).then((primaryKey) => {
-            setPrimaryKey(entity, keyPath, primaryKey)
-            resolve(entity)
-          }).catch(reject)
-        } catch (error) {
-          reject(error)
-        }
-      })
+    return this[PRIVATE.runOperation]((operationsProvider) => {
+      return operationsProvider.persist(entity)
     })
   }
 
@@ -267,19 +259,8 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    validateEntityClass(entityClass)
-    let objectStoreName = entityClass.objectStore
-
-    return new Promise((resolve, reject) => {
-      this[PRIVATE.pendingOperations].push((transaction) => {
-        try {
-          let objectStore = transaction.getObjectStore(objectStoreName)
-
-          objectStore.delete(primaryKey).then(resolve).catch(reject)
-        } catch (error) {
-          reject(error)
-        }
-      })
+    return this[PRIVATE.runOperation]((operationsProvider) => {
+      return operationsProvider.remove(entityClass, primaryKey)
     })
   }
 
@@ -320,31 +301,16 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    validateEntityClass(entityClass)
-    let objectStoreName = entityClass.objectStore
-
     return (entityCallback) => {
-      return new Promise((resolve, reject) => {
-        this[PRIVATE.pendingOperations].push((transaction) => {
-          try {
-            let objectStore = transaction.getObjectStore(objectStoreName)
-            let keyPath = objectStore.keyPath
-
-            objectStore.updateQuery(filter, order, offset, limit)((record) => {
-              let entity = this[PRIVATE.manageEntity](
-                entityClass,
-                keyPath,
-                record
-              )
-
-              entityCallback(entity)
-
-              return entity
-            }).then(resolve).catch(reject)
-          } catch (error) {
-            reject(error)
-          }
-        })
+      return this[PRIVATE.runOperation]((operationsProvider) => {
+        return operationsProvider.updateQuery(
+          entityClass,
+          filter,
+          order,
+          offset,
+          limit,
+          entityCallback
+        )
       })
     }
   }
@@ -378,23 +344,38 @@ export default class Transaction {
       throw new Error("The transaction is no longer active")
     }
 
-    validateEntityClass(entityClass)
-    let objectStoreName = entityClass.objectStore
+    return this[PRIVATE.runOperation]((operationsProvider) => {
+      return operationsProvider.deleteQuery(
+        entityClass,
+        filter,
+        order,
+        offset,
+        limit
+      )
+    })
+  }
+
+  /**
+   * Runs the provided write operation within this transaction, wrapped in a
+   * promise.
+   *
+   * @template R
+   * @param {function(WriteOperationsProvider): Promise<R>} operation The
+   *        operation to execute.
+   * @return {Promise<R>} A promise resolved when the operation has completed.
+   */
+  [PRIVATE.runOperation](operation) {
+    if (!this[PRIVATE.transactionRunner]) {
+      return this[PRIVATE.transactionRunnerPromise].then(() => {
+        return this[PRIVATE.runOperation](operation)
+      })
+    }
 
     return new Promise((resolve, reject) => {
-      this[PRIVATE.pendingOperations].push((transaction) => {
+      this[PRIVATE.transactionRunner].queuedOperations((transaction) => {
         try {
-          let objectStore = transaction.getObjectStore(objectStoreName)
-          let keyPath = objectStore.keyPath
-
-          objectStore.query(filter, order, offset, limit).then((records) => {
-            Promise.all(records.map((record) => {
-              let primaryKey = getPrimaryKey(record, keyPath)
-              return objectStore.delete(primaryKey).then(() => {
-                this[PRIVATE.entityManager].detach(entityClass, primaryKey)
-              })
-            })).then(resolve).catch(reject)
-          }).catch(reject)
+          let provider = this[PRIVATE.getOperationsProvider](transaction)
+          operation(provider).then(resolve).catch(reject)
         } catch (error) {
           reject(error)
         }
@@ -403,71 +384,18 @@ export default class Transaction {
   }
 
   /**
-   * Initializes the asynchronous runner of the operations in this transaction.
-   * The runner will keep the transaction alive using keep-alive operations and
-   * execute any pending operations every time the keep-alive operation
-   * completes.
+   * Creates a provider of the write operations for the provided transaction.
    *
-   * The runner will terminate with running the remaining pending operations
-   * once the {@code PRIVATE.active} flag is {@code false}
-   *
-   * @param {Database} database The indexed-db.es6 database in which this
-   *        transaction is executed.
+   * @param {Transaction} transaction The current indexed-db.es6 read-write
+   *        transaction to use to perform the read-write operations.
+   * @return {WriteOperationsProvider} The provider of write operations on the
+   *         provided transaction.
    */
-  [PRIVATE.initTransactionRunner](database) {
-    let transaction = database.startTransaction(database.objectStoreNames)
-    this[PRIVATE.transaction] = transaction
-    let objectStore = transaction.getObjectStore(database.objectStoreNames[0])
-
-    keepAlive.call(this)
-
-    function keepAlive() {
-      this[PRIVATE.executedPendingOperations](transaction)
-
-      objectStore.get(Number.MIN_SAFE_INTEGER).then(() => {
-        if (this[PRIVATE.aborted]) {
-          return
-        }
-
-        if (this[PRIVATE.active]) {
-          keepAlive.call(this)
-        } else {
-          // finish pending operations
-          this[PRIVATE.executedPendingOperations](transaction)
-        }
-      })
-    }
-  }
-
-  /**
-   * Executes all pending operations in this transaction.
-   *
-   * @param {Transaction} transaction The indexed-db.es transaction.
-   */
-  [PRIVATE.executedPendingOperations](transaction) {
-    let operations = this[PRIVATE.pendingOperations]
-    this[PRIVATE.pendingOperations] = []
-
-    for (let operation of operations) {
-      operation(transaction)
-    }
-  }
-
-  /**
-   * Detaches the entity identified by the provided primary key from the entity
-   * manager that created this transaction.
-   *
-   * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
-   *        The entity class specifying the entity type.
-   * @param {(number|string|Date|Array)} primaryKey The primary key identifying
-   *        the entity.
-   */
-  [PRIVATE.detachEntity](entityClass, primaryKey) {
-    let entities = this[PRIVATE.entities].get(entityClass)
-
-    if (entities) {
-      let serializedKey = serializeKey(primaryKey)
-      entities.delete(serializedKey)
-    }
+  [PRIVATE.getOperationsProvider](transaction) {
+    return new WriteOperationsProvider(
+      transaction,
+      this[PRIVATE.manageEntity],
+      this[PRIVATE.entityManager]
+    )
   }
 }
