@@ -81,6 +81,12 @@ export default class WriteOperationsProvider {
         setPrimaryKey(entity, keyPath, primaryKey)
         return entity
       }).then(resolve).catch(reject)
+    }).then((entity) => {
+      if (entity) {
+        return this[PRIVATE.manageEntity](entity.constructor, keyPath, entity)
+      }
+
+      return null
     })
   }
 
