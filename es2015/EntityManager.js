@@ -19,7 +19,6 @@ const PRIVATE = Object.freeze({
 
   //methods
   manage: Symbol("manage"),
-  registerKeyPath: Symbol("registerKeyPath"),
   runTransactionOperation: Symbol("runTransactionOperation")
 })
 
@@ -55,9 +54,10 @@ export default class EntityManager {
     this[PRIVATE.entities] = new Map()
 
     /**
-     * Shared map of entity classes to entity primary key key paths.
+     * Shared cache of primary key key paths for object stores. The keys are
+     * object store names.
      *
-     * @type {Map<function(new: AbstractEntity, Object<string, *>), (string|string[])>}
+     * @type {Map<string, (string|string[])>}
      */
     this[PRIVATE.entityKeyPaths] = entityKeyPaths
 
@@ -87,14 +87,18 @@ export default class EntityManager {
    *         entity manager.
    */
   contains(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must be an AbstractEntity instance")
+    }
     let entityClass = entity.constructor
+    validateEntityClass(entityClass)
 
     if (!this[PRIVATE.entities].has(entityClass)) {
       return false
     }
 
     let keysToEntities = this[PRIVATE.entities].get(entityClass)
-    let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass)
+    let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass.objectStore)
     let primaryKey = getPrimaryKey(entity, keyPath)
     let serializedKey = serializeKey(primaryKey)
     if (!keysToEntities.has(serializeKey(serializedKey))) {
@@ -117,6 +121,8 @@ export default class EntityManager {
    *         entity manager.
    */
   containsByPrimaryKey(entityClass, primaryKey) {
+    validateEntityClass(entityClass)
+
     if (!this[PRIVATE.entities].has(entityClass)) {
       return false
     }
@@ -245,6 +251,11 @@ export default class EntityManager {
    *         saved. The promise will resolve to the saved entity.
    */
   persist(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must be an AbstractEntity instance")
+    }
+    validateEntityClass(entity.constructor)
+
     if (this[PRIVATE.activeTransaction]) {
       return this[PRIVATE.activeTransaction].persist(entity)
     }
@@ -272,6 +283,8 @@ export default class EntityManager {
    *         been deleted.
    */
   remove(entityClass, entityPrimaryKey) {
+    validateEntityClass(entityClass)
+
     if (this[PRIVATE.activeTransaction]) {
       return this[PRIVATE.activeTransaction].remove(
         entityClass,
@@ -315,6 +328,8 @@ export default class EntityManager {
    */
   updateQuery(entityClass, filter = null, order = "next", offset = 0,
       limit = null) {
+    validateEntityClass(entityClass)
+
     return (recordCallback) => {
       if (this[PRIVATE.activeTransaction]) {
         return this[PRIVATE.activeTransaction].updateQuery(
@@ -370,6 +385,8 @@ export default class EntityManager {
    */
   deleteQuery(entityClass, filter = null, order = "next", offset = 0,
       limit = null) {
+    validateEntityClass(entityClass)
+
     if (this[PRIVATE.activeTransaction]) {
       return this[PRIVATE.activeTransaction].deleteQuery(
         entityClass,
@@ -460,67 +477,84 @@ export default class EntityManager {
    *        manager.
    */
   detach(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must be an AbstractEntity instance")
+    }
     let entityClass = entity.constructor
+    validateEntityClass(entityClass)
+
     if (!this[PRIVATE.entities].has(entityClass)) {
       return // the entity is not managed by this entity manager, so we're done
     }
 
     let entities = this[PRIVATE.entities].get(entityClass)
-    let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass)
+    let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass.objectStore)
 
     let primaryKey = getPrimaryKey(entity, keyPath)
     let serializedKey = serializeKey(primaryKey)
     entities.delete(serializedKey)
   }
 
+  /**
+   * Merges the state of the provided entity into the persistence context of
+   * this entity manager.
+   *
+   * @template {T} extends AbstractEntity
+   * @param {T} entity The entity to merge into the persistence context.
+   * @return {T} An entity managed by this entity manager, with its state set
+   *         to a clone of the provided entity.
+   */
   merge(entity) {
     if (!(entity instanceof AbstractEntity)) {
       throw new TypeError("The entity must an AbstractEntity instance")
     }
-    validateEntityClass(entity.constructor)
+    var entityClass = entity.constructor
+    validateEntityClass(entityClass)
 
     if (this.contains(entity)) {
       return entity // nothing to do
     }
 
-    if (!this[PRIVATE.entityKeyPaths].has(entity.constructor)) {
-      return this[PRIVATE.connection].then((database) => {
-        let storeName = entity.constructor.objectStore
-        return database.runReadOnlyTransaction(storeName, (objectStore) => {
-          let keyPath = objectStore.keyPath
-          this[PRIVATE.registerKeyPath](entity.constructor, keyPath)
-        })
-      }).then(() => this.merge(entity))
+    if (!this[PRIVATE.entityKeyPaths].has(entityClass.objectStore)) {
+      throw new Error(`The object store (${entityClass.objectStore}) of the ` +
+          "provided entity does not exist")
     }
 
-    let keyPath = this[PRIVATE.entityKeyPaths].get(entity.constructor)
+    let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass.objectStore)
     let primaryKey = getPrimaryKey(entity, keyPath)
 
-    if (!this.containsByPrimaryKey(entity.constructor, primaryKey)) {
-      return this[PRIVATE.manage](entity.constructor, keyPath, entity)
+    if (!this.containsByPrimaryKey(entityClass, primaryKey)) {
+      return this[PRIVATE.manage](entityClass, keyPath, entity)
     }
 
     let managedEntity = this[PRIVATE.manage](
-      entity.constructor,
+      entityClass,
       keyPath,
       entity
     )
     Object.assign(managedEntity, clone(entity))
+
     return managedEntity
   }
 
   /**
+   * Reloads the state of the provided entity from the database. The entity
+   * will be modified in place asynchronously.
+   *
    * @template {T} extends AbstractEntity
-   * @param {T} entity
-   * @return {Promise<T>}
+   * @param {T} entity The entity that should have its state reloaded. The
+   *        entity does not have to be currently managed by this entity
+   *        manager.
+   * @return {Promise<T>} A promise that resolves to the reloaded entity.
    */
   refresh(entity) {
     if (!(entity instanceof AbstractEntity)) {
       throw new TypeError("The entity must an AbstractEntity instance")
     }
-    validateEntityClass(entity.constructor)
+    let entityClass = entity.constructor
+    validateEntityClass(entityClass)
 
-    let storeName = entity.constructor.objectStore
+    let storeName = entityClass.objectStore
     let keyPath
     let primaryKey
     if (this[PRIVATE.rwTransactionRunner]) {
@@ -541,13 +575,11 @@ export default class EntityManager {
     }).then(processRefreshedData.bind(this))
 
     function processRefreshedData(entityData) {
-      this[PRIVATE.registerKeyPath](entity.constructor, keyPath)
-
-      if (!this[PRIVATE.entities].has(entity.constructor)) {
-        this[PRIVATE.entities].set(entity.constructor, new Map())
+      if (!this[PRIVATE.entities].has(entityClass)) {
+        this[PRIVATE.entities].set(entityClass, new Map())
       }
 
-      let entities = this[PRIVATE.entities].get(entity.constructor)
+      let entities = this[PRIVATE.entities].get(entityClass)
       let serializedKey = serializeKey(primaryKey)
       entities.set(serializedKey, {
         data: clone(entityData),
@@ -582,8 +614,6 @@ export default class EntityManager {
    *         created out of the provided data.
    */
   [PRIVATE.manage](entityClass, keyPath, entityData) {
-    this[PRIVATE.registerKeyPath](entityClass, keyPath)
-
     if (!this[PRIVATE.entities].has(entityClass)) {
       this[PRIVATE.entities].set(entityClass, new Map())
     }
@@ -604,20 +634,6 @@ export default class EntityManager {
     })
 
     return entity
-  }
-
-  /**
-   * Registers the provided entity primary key key path, if it is not
-   * registered already.
-   *
-   * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
-   *        The entity class.
-   * @param {(string|string[])} keyPath Entity primary key key path.
-   */
-  [PRIVATE.registerKeyPath](entityClass, keyPath) {
-    if (!this[PRIVATE.entityKeyPaths].has(entityClass)) {
-      this[PRIVATE.entityKeyPaths].set(entityClass, keyPath)
-    }
   }
 
   /**

@@ -7,8 +7,12 @@ import EntityManager from "./EntityManager"
  * @type {Object<string, symbol>}
  */
 const PRIVATE = Object.freeze({
+  // fields
   connection: Symbol("connection"),
-  entityKeyPaths: Symbol("entityKeyPaths")
+  entityKeyPaths: Symbol("entityKeyPaths"),
+
+  // methods
+  loadKeyPaths: Symbol("loadKeyPaths")
 })
 
 /**
@@ -37,11 +41,22 @@ export default class EntityManagerFactory {
     this[PRIVATE.connection] = connectionPromise
 
     /**
-     * Shared cache of primary key key paths for entity classes.
+     * Shared cache of primary key key paths for object stores. The keys are
+     * object store names.
      *
-     * @type {Map<function(new: AbstractEntity, data: Object<string, *>), (string|string[])>}
+     * @type {Map<string, (string|string[])>}
      */
     this[PRIVATE.entityKeyPaths] = new Map()
+
+    Object.freeze(this)
+
+    if (databaseConnection instanceof Promise) {
+      databaseConnection.then((database) => {
+        this[PRIVATE.loadKeyPaths](database)
+      })
+    } else {
+      this[PRIVATE.loadKeyPaths](databaseConnection)
+    }
   }
 
   /**
@@ -58,5 +73,22 @@ export default class EntityManagerFactory {
       this[PRIVATE.connection],
       this[PRIVATE.entityKeyPaths]
     )
+  }
+
+  /**
+   * Loads the primary key key paths of all object stores in the database.
+   *
+   * @param {Database} database The connection to the database.
+   */
+  [PRIVATE.loadKeyPaths](database) {
+    database.runReadOnlyTransaction(database.objectStoreNames, (...stores) => {
+      stores.pop() // get rid of the transaction abort callback
+
+      for (let store of stores) {
+        this[PRIVATE.entityKeyPaths].set(store.name, store.keyPath)
+      }
+    })
+
+    Object.freeze(this[PRIVATE.entityKeyPaths])
   }
 }
