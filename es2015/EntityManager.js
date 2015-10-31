@@ -19,7 +19,8 @@ const PRIVATE = Object.freeze({
 
   //methods
   manage: Symbol("manage"),
-  registerKeyPath: Symbol("registerKeyPath")
+  registerKeyPath: Symbol("registerKeyPath"),
+  runTransactionOperation: Symbol("runTransactionOperation")
 })
 
 /**
@@ -49,14 +50,14 @@ export default class EntityManager {
      * classes to a map of serialized entity primary keys to entity source data
      * and entity instances.
      *
-     * @type {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>}
+     * @type {Map<function(new: AbstractEntity, Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>}
      */
     this[PRIVATE.entities] = new Map()
 
     /**
      * Shared map of entity classes to entity primary key key paths.
      *
-     * @type {Map<function(new: AbstractEntity, data: Object<string, *>), (string|string[])>}
+     * @type {Map<function(new: AbstractEntity, Object<string, *>), (string|string[])>}
      */
     this[PRIVATE.entityKeyPaths] = entityKeyPaths
 
@@ -70,8 +71,7 @@ export default class EntityManager {
     this[PRIVATE.rwTransactionRunner] = null
 
     /**
-     * The currently active read-write database-wide transaction on this entity
-     * manager.
+     * The currently active read-write transaction.
      *
      * @type {?Transaction}
      */
@@ -82,7 +82,7 @@ export default class EntityManager {
    * Checks whether the provided entity is an entity managed by this entity
    * manager.
    *
-   * @param {AbstractEntity} entity
+   * @param {AbstractEntity} entity The entity.
    * @return {boolean} {@code true} if the provided entity is managed by this
    *         entity manager.
    */
@@ -104,6 +104,18 @@ export default class EntityManager {
     return keysToEntities.get(serializeKey(serializedKey)).entity === entity
   }
 
+  /**
+   * Checks whether an entity of the specified type and identified by the
+   * provided primary key is currently managed by this entity manager.
+   *
+   * @template {T} extends AbstractEntity
+   * @param {function(new: T, Object<string, *>)} entityClass The type of the
+   *        entity to check for.
+   * @param {(number|string|Date|Array)} primaryKey The primary key identifying
+   *        the entity.
+   * @return {boolean} {@code true} if the specified entity is managed by this
+   *         entity manager.
+   */
   containsByPrimaryKey(entityClass, primaryKey) {
     if (!this[PRIVATE.entities].has(entityClass)) {
       return false
@@ -120,7 +132,7 @@ export default class EntityManager {
    * Retrieves the entity matching the specified primary key from the database.
    *
    * The entity will not be locked in the database nor managed by this entity
-   * manager if the entity manager transaction is not in progress.
+   * manager if an entity manager transaction is not in progress.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -132,28 +144,44 @@ export default class EntityManager {
    */
   find(entityClass, primaryKey) {
     validateEntityClass(entityClass)
-    
-    let storeName = entityClass.objectStore
-    let keyPath
 
-    // TODO: search the local persistence context first before fetching
+    if (this[PRIVATE.entities].has(entityClass)) {
+      let keysToEntities = this[PRIVATE.entities].get(entityClass)
+      let serializedPrimaryKey = serializeKey(primaryKey)
+      if (keysToEntities.has(serializedPrimaryKey)) {
+        return Promise.resolve(keysToEntities.get(serializedPrimaryKey).entity)
+      }
+    }
+
+    let storeName = entityClass.objectStore
+
+    if (this[PRIVATE.rwTransactionRunner]) {
+      let keyPath
+      return this[PRIVATE.runTransactionOperation]((transaction) => {
+        let objectStore = transaction.getObjectStore(storeName)
+        keyPath = objectStore.keyPath
+        return objectStore.get(primaryKey)
+      }).then((entityData) => {
+        if (entityData) {
+          return this[PRIVATE.manage](entityClass, keyPath, entityData)
+        }
+
+        return null
+      })
+    }
 
     return this[PRIVATE.connection].then((database) => {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
-        keyPath = objectStore.keyPath
         return objectStore.get(primaryKey)
       })
-    }).then((entityData) => {
-      if (entityData) {
-        return this[PRIVATE.manage](entityClass, keyPath, entityData)
-      }
-
-      return null
-    })
+    }).then(entityData => entityData || null)
   }
 
   /**
    * Fetches the entities matched by the specified query.
+   *
+   * The entities will not be locked in the database nor managed by this entity
+   * manager if an entity manager transaction is not in progress.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -178,16 +206,23 @@ export default class EntityManager {
     validateEntityClass(entityClass)
 
     let storeName = entityClass.objectStore
-    let keyPath
+
+    if (this[PRIVATE.rwTransactionRunner]) {
+      let keyPath
+      return this[PRIVATE.runTransactionOperation]((transaction) => {
+        let objectStore = transaction.getObjectStore(storeName)
+        keyPath = objectStore.keyPath
+        return objectStore.query(filter, order, offset, limit)
+      }).then((entities) => {
+        return entities.map((entityData) => {
+          return this[PRIVATE.manage](entityClass, keyPath, entityData)
+        })
+      })
+    }
 
     return this[PRIVATE.connection].then((database) => {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
-        keyPath = objectStore.keyPath
         return objectStore.query(filter, order, offset, limit)
-      })
-    }).then((entities) => {
-      return entities.map((entityData) => {
-        return this[PRIVATE.manage](entityClass, keyPath, entityData)
       })
     })
   }
@@ -198,11 +233,11 @@ export default class EntityManager {
    * for new records automatically, the entity will have its primary key set
    * when this operation completes.
    *
-   * The created entity will be managed by this entity manager.
+   * The created entity will be managed by this entity manager. The entity will
+   * be persisted using the current transaction if there is one active.
    *
    * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted. Also, this method
-   * cannot be used while a transaction is active on this entity manager.
+   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {T} entity The entity to create in the database.
@@ -210,6 +245,10 @@ export default class EntityManager {
    *         saved. The promise will resolve to the saved entity.
    */
   persist(entity) {
+    if (this[PRIVATE.activeTransaction]) {
+      return this[PRIVATE.activeTransaction].persist(entity)
+    }
+
     return this.runTransaction((transaction) => {
       return transaction.persist(entity)
     }).then(() => entity)
@@ -219,9 +258,10 @@ export default class EntityManager {
    * Deletes the specified entity. If the entity is managed by this entity
    * manager, it will become detached.
    *
+   * The method will use the current transaction if there is one active.
+   *
    * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted. Also, this method
-   * cannot be used while a transaction is active on this entity manager.
+   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -232,6 +272,13 @@ export default class EntityManager {
    *         been deleted.
    */
   remove(entityClass, entityPrimaryKey) {
+    if (this[PRIVATE.activeTransaction]) {
+      return this[PRIVATE.activeTransaction].remove(
+        entityClass,
+        entityPrimaryKey
+      )
+    }
+
     return this.runTransaction((transaction) => {
       return transaction.remove(entityClass, entityPrimaryKey)
     })
@@ -240,9 +287,10 @@ export default class EntityManager {
   /**
    * Updates the records matched by the specified query.
    *
+   * The method will use the current transaction if there is one active.
+   *
    * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted. Also, this method
-   * cannot be used while a transaction is active on this entity manager.
+   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -268,6 +316,16 @@ export default class EntityManager {
   updateQuery(entityClass, filter = null, order = "next", offset = 0,
       limit = null) {
     return (recordCallback) => {
+      if (this[PRIVATE.activeTransaction]) {
+        return this[PRIVATE.activeTransaction].updateQuery(
+          entityClass,
+          filter,
+          order,
+          offset,
+          limit
+        )(recordCallback)
+      }
+
       return this.runTransaction((transaction) => {
         return transaction.updateQuery(
           entityClass,
@@ -285,9 +343,10 @@ export default class EntityManager {
    * entities are currently managed by this entity manager, they will become
    * detached.
    *
+   * The method will use the current transaction if there is one active.
+   *
    * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted. Also, this method
-   * cannot be used while a transaction is active on this entity manager.
+   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -311,6 +370,16 @@ export default class EntityManager {
    */
   deleteQuery(entityClass, filter = null, order = "next", offset = 0,
       limit = null) {
+    if (this[PRIVATE.activeTransaction]) {
+      return this[PRIVATE.activeTransaction].deleteQuery(
+        entityClass,
+        filter,
+        order,
+        offset,
+        limit
+      )
+    }
+
     return this.runTransaction((transaction) => {
       return transaction.deleteQuery(entityClass, filter, order, offset, limit)
     })
@@ -320,16 +389,15 @@ export default class EntityManager {
    * Starts a new transaction if there is not already one active.
    *
    * Note that multiple simultaneous transactions cannot be started from the
-   * same entity manager. A transaction also cannot be started while a write
-   * operation (entity creation, modification of deletion or entity
-   * modification or deletion query) is in progress.
+   * same entity manager. The transaction will lock all object stores in the
+   * database until the transaction completes.
    *
    * @return {Transaction} The started transaction.
    * @throws {Error} Thrown if there already is a transaction in progress on
    *         this entity manager.
    */
   startTransaction() {
-    if (this[PRIVATE.rwTransactionRunner]) {
+    if (this[PRIVATE.activeTransaction]) {
       throw new Error("This entity manager is already running a transaction")
     }
 
@@ -346,8 +414,8 @@ export default class EntityManager {
         return this[PRIVATE.manage](entityClass, keyPath, entityData)
       },
       () => {
-        this[PRIVATE.activeTransaction] = null
         this[PRIVATE.rwTransactionRunner] = null
+        this[PRIVATE.activeTransaction] = null
       }
     )
 
@@ -356,14 +424,13 @@ export default class EntityManager {
 
   /**
    * The methods starts a new transaction and executes the provided callback
-   * within it. The waits for the operations started by the callback to finish,
-   * then commits the transaction and resolves to the value returned by the
-   * promise returned by the provided operations callback.
+   * within it. The method waits for the operations started by the callback to
+   * finish, then commits the transaction and resolves to the value returned by
+   * the promise returned by the provided operations callback.
    *
    * Note that multiple simultaneous transactions cannot be started from the
-   * same entity manager. A transaction also cannot be started while a write
-   * operation (entity creation, modification of deletion or entity
-   * modification or deletion query) is in progress.
+   * same entity manager. The transaction will lock all object stores in the
+   * database until the transaction completes.
    *
    * @template R
    * @param {function(Transaction): Promise<R>} operations The callback that
@@ -406,9 +473,91 @@ export default class EntityManager {
     entities.delete(serializedKey)
   }
 
-  merge(entity) {}
+  merge(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must an AbstractEntity instance")
+    }
+    validateEntityClass(entity.constructor)
 
-  refresh(entity) {}
+    if (this.contains(entity)) {
+      return entity // nothing to do
+    }
+
+    if (!this[PRIVATE.entityKeyPaths].has(entity.constructor)) {
+      return this[PRIVATE.connection].then((database) => {
+        let storeName = entity.constructor.objectStore
+        return database.runReadOnlyTransaction(storeName, (objectStore) => {
+          let keyPath = objectStore.keyPath
+          this[PRIVATE.registerKeyPath](entity.constructor, keyPath)
+        })
+      }).then(() => this.merge(entity))
+    }
+
+    let keyPath = this[PRIVATE.entityKeyPaths].get(entity.constructor)
+    let primaryKey = getPrimaryKey(entity, keyPath)
+
+    if (!this.containsByPrimaryKey(entity.constructor, primaryKey)) {
+      return this[PRIVATE.manage](entity.constructor, keyPath, entity)
+    }
+
+    let managedEntity = this[PRIVATE.manage](
+      entity.constructor,
+      keyPath,
+      entity
+    )
+    Object.assign(managedEntity, clone(entity))
+    return managedEntity
+  }
+
+  /**
+   * @template {T} extends AbstractEntity
+   * @param {T} entity
+   * @return {Promise<T>}
+   */
+  refresh(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must an AbstractEntity instance")
+    }
+    validateEntityClass(entity.constructor)
+
+    let storeName = entity.constructor.objectStore
+    let keyPath
+    let primaryKey
+    if (this[PRIVATE.rwTransactionRunner]) {
+      return this[PRIVATE.runTransactionOperation]((transaction) => {
+        let objectStore = transaction.getObjectStore(storeName)
+        keyPath = objectStore.keyPath
+        primaryKey = getPrimaryKey(entity, keyPath)
+        return objectStore.get(primaryKey)
+      }).then(processRefreshedData.bind(this))
+    }
+
+    return this[PRIVATE.connection].then((database) => {
+      return database.runReadOnlyTransaction(storeName, (objectStore) => {
+        keyPath = objectStore.keyPath
+        primaryKey = getPrimaryKey(entity, keyPath)
+        return objectStore.get(primaryKey)
+      })
+    }).then(processRefreshedData.bind(this))
+
+    function processRefreshedData(entityData) {
+      this[PRIVATE.registerKeyPath](entity.constructor, keyPath)
+
+      if (!this[PRIVATE.entities].has(entity.constructor)) {
+        this[PRIVATE.entities].set(entity.constructor, new Map())
+      }
+
+      let entities = this[PRIVATE.entities].get(entity.constructor)
+      let serializedKey = serializeKey(primaryKey)
+      entities.set(serializedKey, {
+        data: clone(entityData),
+        entity
+      })
+
+      Object.assign(entity, entityData)
+      return entity
+    }
+  }
 
   /**
    * Clears this entity manager, detaching all previously attached entities.
@@ -469,5 +618,32 @@ export default class EntityManager {
     if (!this[PRIVATE.entityKeyPaths].has(entityClass)) {
       this[PRIVATE.entityKeyPaths].set(entityClass, keyPath)
     }
+  }
+
+  /**
+   * Runs the provided transaction in the current read-write transaction and
+   * returns a promise that resolves when the operation completes.
+   *
+   * @template T
+   * @param {function(Transaction): (Promise<T>|PromiseSync<T>)} operation The
+   *        operation to run.
+   * @return {Promise<T>} A promise that resolves to the operation's result.
+   */
+  [PRIVATE.runTransactionOperation](operation) {
+    if (!this[PRIVATE.rwTransactionRunner]) {
+      throw new Error("There is no transaction in progress")
+    }
+
+    return this[PRIVATE.rwTransactionRunner].then((transactionRunner) => {
+      return new Promise((resolve, reject) => {
+        transactionRunner.queueOperation((transaction) => {
+          try {
+            operation(transaction).then(resolve).catch(reject)
+          } catch (error) {
+            reject(error)
+          }
+        })
+      })
+    })
   }
 }
