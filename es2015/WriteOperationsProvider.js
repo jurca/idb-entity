@@ -70,6 +70,9 @@ export default class WriteOperationsProvider {
    *         primary key set.
    */
   persist(entity) {
+    if (!(entity instanceof AbstractEntity)) {
+      throw new TypeError("The entity must be an AbstractEntity instance")
+    }
     validateEntityClass(entity.constructor)
 
     let objectStoreName = entity.constructor.objectStore
