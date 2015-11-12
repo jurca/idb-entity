@@ -76,6 +76,19 @@ export default class EntityManagerFactory {
   }
 
   /**
+   * Terminates the connection to the database as soon as possible. The
+   * returned promise will resolve once the connection has been terminated.
+   *
+   * @return {Promise<undefined>} A promise that will resolve once the
+   *         connection has been terminated.
+   */
+  close() {
+    return this[PRIVATE.connection].then((database) => {
+      return database.close()
+    })
+  }
+
+  /**
    * Loads the primary key key paths of all object stores in the database.
    *
    * @param {Database} database The connection to the database.
