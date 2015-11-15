@@ -627,7 +627,6 @@ export default class EntityManager {
       return entities.get(serializedKey).entity
     }
 
-    let serializedKey = serializeKey(primaryKey)
     entities.set(serializedKey, {
       data: clone(entityData),
       entity
