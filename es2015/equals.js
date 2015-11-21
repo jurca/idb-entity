@@ -28,7 +28,7 @@ const UNINSPECTABLE_TYPES = []
 /**
  * Types of the typed array supported in the current environment.
  * 
- * @type {function(new: TypedAray)[]}
+ * @type {function(new: TypedArray)[]}
  */
 const TYPED_ARRAY_TYPES = []
 
@@ -37,8 +37,9 @@ const TYPED_ARRAY_TYPES = []
  * 
  * @param {*} value1 The 1st value to compare.
  * @param {*} value2 The 2nd value to compare.
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the values are equal.
  */
 function equals(value1, value2, traversedValues) {
@@ -106,8 +107,9 @@ function equals(value1, value2, traversedValues) {
  * 
  * @param {Object<string, *>} object1 The 1st object to compare.
  * @param {Object<string, *>} object2 The 2nd object to compare.
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the objects are equal.
  */
 function objectEquals(object1, object2, traversedValues) {
@@ -129,8 +131,9 @@ function objectEquals(object1, object2, traversedValues) {
  * 
  * @param {Set<*>} set1 The 1st set to compare.
  * @param {Set<*>} set2 The 2nd set to compare.
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the sets are equal.
  */
 function setEquals(set1, set2, traversedValues) {
@@ -153,8 +156,9 @@ function setEquals(set1, set2, traversedValues) {
  * 
  * @param {Map<*, *>} map1 The 1st map to compare.
  * @param {Map<*, *>} map2 The 2nd map to compare.
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the maps are equal.
  */
 function mapEquals(map1, map2, traversedValues) {
@@ -177,8 +181,9 @@ function mapEquals(map1, map2, traversedValues) {
  * 
  * @param {*[]} array1 The 1st array to compare.
  * @param {*[]} array2 The 2nd array to compare.
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the arrays are equal.
  */
 function arrayEquals(array1, array2, traversedValues) {
@@ -209,8 +214,9 @@ function arrayEquals(array1, array2, traversedValues) {
  * @param {function(Object, *): *} getter A callback for retrieving the value
  *        of the property identified by the provided key (2nd argument) from
  *        the structure (1st argument).
- * @param {Map<Object, Object>} A map of non-primitive values traversed in the
- *        first structure to their equal counterparts in the second structure.
+ * @param {Map<Object, Object>} traversedValues A map of non-primitive values
+ *        traversed in the first structure to their equal counterparts in the
+ *        second structure.
  * @return {boolean} {@code true} if the keys, the order of the keys and the
  *         values retrieved by the keys from the structures are equal.
  */
