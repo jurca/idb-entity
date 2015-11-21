@@ -30,4 +30,9 @@ describe("equals", () => {
     expect(equals(new String("def"), new String("ghi"))).toBeFalsy()
   })
 
+  it("should compare Dates", () => {
+    expect(equals(new Date(1234567890), new Date(1234567890))).toBeTruthy()
+    expect(equals(new Date(1234567890), new Date(1234567987))).toBeFalsy()
+  })
+
 })
