@@ -73,6 +73,10 @@ function cloneValue(value, traversedValues) {
   if ((typeof ImageData === "function") && (value instanceof ImageData)) {
     return new ImageData(value.data, value.width, value.height)
   }
+
+  if ((typeof ImageBitmap === "function") && (value instanceof ImageBitmap)) {
+    return value
+  }
   
   if (value instanceof Array) {
     return cloneArray(value, traversedValues)

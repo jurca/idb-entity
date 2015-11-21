@@ -294,6 +294,9 @@ if (typeof File === "function") {
 if (typeof FileList === "function") {
   UNINSPECTABLE_TYPES.push(FileList)
 }
+if (typeof ImageBitmap === "function") {
+  UNINSPECTABLE_TYPES.push(ImageBitmap)
+}
 
 if (typeof Int8Array === "function") {
   TYPED_ARRAY_TYPES.push(Int8Array)
