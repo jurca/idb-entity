@@ -71,6 +71,15 @@ function equals(value1, value2, traversedValues) {
     return (value2 instanceof ArrayBuffer) &&
         equals(new Int8Array(value1), new Int8Array(value2), traversedValues)
   }
+
+  if ((typeof DataView === "function") && (value1 instanceof DataView)) {
+    return (value2 instanceof DataView) &&
+        equals(
+          new Int8Array(value1.buffer, value1.byteOffset, value1.byteLength),
+          new Int8Array(value2.buffer, value2.byteOffset, value2.byteLength),
+          traversedValues
+        )
+  }
   
   for (let arrayType of TYPED_ARRAY_TYPES) {
     if (value1 instanceof arrayType) {

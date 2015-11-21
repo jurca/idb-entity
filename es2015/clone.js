@@ -64,6 +64,14 @@ function cloneValue(value, traversedValues) {
   if ((typeof ArrayBuffer === "function") && (value instanceof ArrayBuffer)) {
     return value.slice()
   }
+
+  if ((typeof DataView === "function") && (value instanceof DataView)) {
+    return new DataView(
+      value.buffer.slice(),
+      value.byteOffset,
+      value.byteLength
+    )
+  }
   
   let isTypedArray = TYPED_ARRAY_TYPES.some(type => value instanceof type)
   if (isTypedArray) {
