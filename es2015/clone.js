@@ -2,7 +2,7 @@
 /**
  * Types of the typed array supported in the current environment.
  * 
- * @type {function(new: TypedAray)[]}
+ * @type {function(new: TypedArray)[]}
  */
 const TYPED_ARRAY_TYPES = []
 
@@ -194,8 +194,8 @@ function cloneObject(source, traversedValues) {
  * The cloned structure may contain circular references, the function keeps
  * track of those using the {@code traversedValues} map.
  * 
- * @param {(*[]|{[Symbol.iterator]: function(): {next: function(): *}})}
- *        keys The keys or iterator or iterable object generating the keys to
+ * @param {(*[]|{[Symbol.iterator]: function(): {next: function(): *}})} keys
+ *        The keys or iterator or iterable object generating the keys to
  *        properties to clone.
  * @param {function(*): *} getter A callback that returns the value of the
  *        source structure for the provided key.
