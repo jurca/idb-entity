@@ -92,7 +92,7 @@ function equals(value1, value2, traversedValues) {
   }
   
   if (value1 instanceof Map) {
-    return setEquals(value1, value2, traversedValues)
+    return mapEquals(value1, value2, traversedValues)
   }
   
   if (value1 instanceof Set) {
