@@ -98,8 +98,12 @@ function equals(value1, value2, traversedValues) {
   if (value1 instanceof Set) {
     return setEquals(value1, value2, traversedValues)
   }
-  
-  return objectEquals(value1, value2, traversedValues)
+
+  if (isPlainObject(value1) && isPlainObject(value2)) {
+    return objectEquals(value1, value2, traversedValues)
+  }
+
+  throw new Error(`Unsupported argument types: ${value1}, ${value2}`)
 }
 
 /**
@@ -283,6 +287,20 @@ function iteratorToArray(iterator) {
   }
   
   return elements
+}
+
+/**
+ * Returns {@code true} if the provided value is a plain object.
+ *
+ * @param {*} value The value to test.
+ * @returns {boolean} {@code} if the provided value is a plain object.
+ */
+function isPlainObject(value) {
+  return (value instanceof Object) &&
+    (
+      (Object.getPrototypeOf(value) === Object.prototype) ||
+      (Object.getPrototypeOf(value) === null)
+    )
 }
 
 if (typeof Blob === "function") {

@@ -89,8 +89,12 @@ function cloneValue(value, traversedValues) {
   if (value instanceof Set) {
     return cloneSet(value, traversedValues)
   }
-  
-  return cloneObject(value, traversedValues)
+
+  if (isPlainObject(value)) {
+    return cloneObject(value, traversedValues)
+  }
+
+  throw new Error(`Unsupported argument type: ${value}`)
 }
 
 /**
@@ -239,6 +243,20 @@ function cloneStructure(keys, getter, setter, traversedValues) {
       setter(keyClone, value)
     }
   }
+}
+
+/**
+ * Returns {@code true} if the provided value is a plain object.
+ *
+ * @param {*} value The value to test.
+ * @returns {boolean} {@code} if the provided value is a plain object.
+ */
+function isPlainObject(value) {
+  return (value instanceof Object) &&
+      (
+        (Object.getPrototypeOf(value) === Object.prototype) ||
+        (Object.getPrototypeOf(value) === null)
+      )
 }
 
 if (typeof Int8Array === "function") {
