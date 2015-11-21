@@ -69,7 +69,7 @@ function equals(value1, value2, traversedValues) {
   
   if ((typeof ArrayBuffer === "function") && (value1 instanceof ArrayBuffer)) {
     return (value2 instanceof ArrayBuffer) &&
-        equals(new Int16Array(value1), new Int16Array(value2), traversedValues)
+        equals(new Int8Array(value1), new Int8Array(value2), traversedValues)
   }
   
   for (let arrayType of TYPED_ARRAY_TYPES) {
