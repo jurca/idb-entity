@@ -248,6 +248,8 @@ function structureEquals(structure1, structure2, keys1, keys2, getter,
     if ((key1 instanceof Object) && traversedValues.has(key1)) {
       if (traversedValues.get(key1) !== key2) {
         return false
+      } else {
+        continue
       }
     }
     
@@ -262,9 +264,11 @@ function structureEquals(structure1, structure2, keys1, keys2, getter,
     let value1 = getter(structure1, key1)
     let value2 = getter(structure2, key2)
     
-    if ((value1 instanceof Object) && traversedValues.has(key1)) {
+    if ((value1 instanceof Object) && traversedValues.has(value1)) {
       if (traversedValues.get(value1) !== value2) {
         return false
+      } else {
+        continue
       }
     }
     
