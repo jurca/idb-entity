@@ -15,7 +15,7 @@ export default function (value1, value2) {
  * 
  * @type {function(new: *)[]}
  */
-const WRAPPED_TYPES = [Boolean, String, Date]
+const WRAPPED_TYPES = [Boolean, Number, String, Date]
 
 /**
  * Types of objects that cannot be inspected. Values of this type will be
