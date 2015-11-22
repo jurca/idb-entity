@@ -28,7 +28,7 @@ export default class AbstractEntity {
     }
     if (!specifiesObjectStore(this.constructor)) {
       throw new Error("The entity class must specify an objectStore " +
-          "property that return a non-empty string specifying the name of " +
+          "property that returns a non-empty string specifying the name of " +
           "the object store")
     }
 
