@@ -54,7 +54,7 @@ function cloneValue(value, traversedValues) {
   }
   
   if ((typeof Blob === "function") && (value instanceof Blob)) {
-    return value.slice(0, value.size, value.type)
+    return value // immutable
   }
   
   if ((typeof File === "function") && (value instanceof File)) {
