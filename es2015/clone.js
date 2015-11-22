@@ -36,6 +36,10 @@ function cloneValue(value, traversedValues) {
   if (value instanceof Boolean) {
     return new Boolean(value.valueOf())
   }
+
+  if (value instanceof Number) {
+    return new Number(value.valueOf())
+  }
   
   if (value instanceof String) {
     return new String(value.valueOf())
