@@ -80,8 +80,9 @@ describe("equals", () => {
     }
 
     if (navigator.userAgent.indexOf("Firefox") > -1) {
-      // creating image bitmaps seems to freeze firefox at the moment of
-      // writing these tests :(
+      // Creating image bitmaps seems to freeze Firefox at the moment of
+      // writing these tests :(. Maybe it is because of the lack of WebGL
+      // support in the testing environment?
       done()
       return
     }
