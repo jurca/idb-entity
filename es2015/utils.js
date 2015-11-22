@@ -67,7 +67,7 @@ export function getPrimaryKey(entity, keyPath) {
 export function setPrimaryKey(entity, keyPath, primaryKey) {
   if (keyPath instanceof Array) {
     let isPrimaryKeyValid = (primaryKey instanceof Array) &&
-        (keyPath.length !== primaryKey.length)
+        (keyPath.length === primaryKey.length)
     if (!isPrimaryKeyValid) {
       throw new Error("The number of elements of the primary key array must " +
           "match the number of field paths in the key path")
