@@ -98,4 +98,42 @@ describe("utils", () => {
     })
   })
 
+  it("should test if a class is a subclass of another", () => {
+    class A {}
+    class B {}
+    class C extends A {}
+    class D extends B {}
+    class E extends C {}
+
+    expect(utils.isSubClass(A, B)).toBeFalsy()
+    expect(utils.isSubClass(C, A)).toBeTruthy()
+    expect(utils.isSubClass(E, A)).toBeTruthy()
+    expect(utils.isSubClass(D, C)).toBeFalsy()
+  })
+
+  it("should test if a class specifies a valid object store name", () => {
+    class Entity {}
+    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
+    Entity.objectStore = 1
+    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
+    Entity.objectStore = ""
+    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
+    Entity.objectStore = "a"
+    expect(utils.specifiesObjectStore(Entity)).toBeTruthy()
+
+    class Entity2 {
+      static get objectStore() {
+        return "foo"
+      }
+    }
+    expect(utils.specifiesObjectStore(Entity2)).toBeTruthy()
+
+    class Entity3 {
+      get objectStore() {
+        return "foo"
+      }
+    }
+    expect(utils.specifiesObjectStore(Entity3)).toBeFalsy()
+  })
+
 })
