@@ -2,6 +2,7 @@
 import * as utils from "../es2015/utils"
 import clone from "../es2015/clone"
 import equals from "../es2015/equals"
+import AbstractEntity from "../es2015/AbstractEntity"
 
 describe("utils", () => {
 
@@ -60,6 +61,39 @@ describe("utils", () => {
       id1: new Date(12),
       id2: {
         foo: 4
+      }
+    })
+  })
+
+  it("should validate en entity class", () => {
+    expect(() => {
+      utils.validateEntityClass(class Entity {})
+    }).toThrow()
+    expect(() => {
+      utils.validateEntityClass(class Entity {
+        static get objectStore() {
+          return 1
+        }
+      })
+    }).toThrow()
+    expect(() => {
+      utils.validateEntityClass(class Entity extends AbstractEntity {
+        static get objectStore() {
+          return ""
+        }
+      })
+    }).toThrow()
+    expect(() => {
+      utils.validateEntityClass(class Entity {
+        static get objectStore() {
+          return "fooBar"
+        }
+      })
+    }).toThrow()
+
+    utils.validateEntityClass(class Entity extends AbstractEntity {
+      static get objectStore() {
+        return "fooBar"
       }
     })
   })

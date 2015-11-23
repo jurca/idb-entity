@@ -1,6 +1,7 @@
 
 import cloneImpl from "./clone"
 import equalsImpl from "./equals"
+import AbstractEntity from "./AbstractEntity"
 
 /**
  * Clones the provided value using the structured clone algorithm.
