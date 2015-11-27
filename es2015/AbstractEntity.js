@@ -1,6 +1,4 @@
 
-import {specifiesObjectStore} from "./utils"
-
 /**
  * The {@linkcode AbstractEntity} is a base class of all entity classes - all
  * entities managed by an entity manager must be instances of classes extending
@@ -34,4 +32,19 @@ export default class AbstractEntity {
 
     Object.assign(this, data)
   }
+}
+
+/**
+ * Returns {@code true} if the provided entity class has a valid static
+ * {@code objectStore} property that returns a non-empty string.
+ *
+ * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
+ *        The entity class to validate.
+ * @return {boolean} {@code true} if the provided entity class has a valid
+ *         static {@code objectStore} property.
+ */
+export function specifiesObjectStore(entityClass) {
+  return entityClass.hasOwnProperty("objectStore") &&
+    (typeof entityClass.objectStore === "string") &&
+    !!entityClass.objectStore
 }

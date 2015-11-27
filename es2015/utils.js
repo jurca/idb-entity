@@ -2,6 +2,8 @@
 import cloneImpl from "./clone"
 import equalsImpl from "./equals"
 import AbstractEntity from "./AbstractEntity"
+import {specifiesObjectStore as specifiesObjectStoreIml}
+    from "./AbstractEntity"
 
 /**
  * Clones the provided value using the structured clone algorithm.
@@ -21,6 +23,17 @@ export let clone = cloneImpl
  * @return {boolean} {@code true} if the values are equal.
  */
 export let equals = equalsImpl
+
+/**
+ * Returns {@code true} if the provided entity class has a valid static
+ * {@code objectStore} property that returns a non-empty string.
+ *
+ * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
+ *        The entity class to validate.
+ * @return {boolean} {@code true} if the provided entity class has a valid
+ *         static {@code objectStore} property.
+ */
+export let specifiesObjectStore = specifiesObjectStoreIml
 
 /**
  * Serializes the provided Indexed DB key to a string.
@@ -129,21 +142,6 @@ export function isSubClass(subClass, superClass) {
   }
   
   return false
-}
-
-/**
- * Returns {@code true} if the provided entity class has a valid static
- * {@code objectStore} property that returns a non-empty string.
- *
- * @param {function(new: AbstractEntity, data: Object<string, *>)} entityClass
- *        The entity class to validate.
- * @return {boolean} {@code true} if the provided entity class has a valid
- *         static {@code objectStore} property.
- */
-export function specifiesObjectStore(entityClass) {
-  return entityClass.hasOwnProperty("objectStore") &&
-      (typeof entityClass.objectStore === "string") &&
-      !!entityClass.objectStore
 }
 
 /**
