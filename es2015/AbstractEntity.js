@@ -17,10 +17,11 @@ export default class AbstractEntity {
    * Initializes the entity from the provided data.
    *
    * @param {Object<string, *>} data The data representing the state of the
-   *        entity.
+   *        entity. The data may contain cyclic references except for
+   *        references to the data object itself.
    */
   constructor(data) {
-    if (this.constructor === AbstractEntity) {
+    if (new.target === AbstractEntity) {
       throw new Error("The AbstractEntity class is abstract and must be " +
           "overridden")
     }

@@ -3,12 +3,14 @@ import * as utils from "../es2015/utils"
 import clone from "../es2015/clone"
 import equals from "../es2015/equals"
 import AbstractEntity from "../es2015/AbstractEntity"
+import {specifiesObjectStore} from "../es2015/AbstractEntity"
 
 describe("utils", () => {
 
-  it("should export clone and equals utilities", () => {
+  it("should export clone, equals and specifiesObjectStore utilities", () => {
     expect(utils.clone).toBe(clone)
     expect(utils.equals).toBe(equals)
+    expect(utils.specifiesObjectStore).toBe(specifiesObjectStore)
   })
 
   it("should serialize IndexedDB keys", () => {
@@ -109,31 +111,6 @@ describe("utils", () => {
     expect(utils.isSubClass(C, A)).toBeTruthy()
     expect(utils.isSubClass(E, A)).toBeTruthy()
     expect(utils.isSubClass(D, C)).toBeFalsy()
-  })
-
-  it("should test if a class specifies a valid object store name", () => {
-    class Entity {}
-    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
-    Entity.objectStore = 1
-    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
-    Entity.objectStore = ""
-    expect(utils.specifiesObjectStore(Entity)).toBeFalsy()
-    Entity.objectStore = "a"
-    expect(utils.specifiesObjectStore(Entity)).toBeTruthy()
-
-    class Entity2 {
-      static get objectStore() {
-        return "foo"
-      }
-    }
-    expect(utils.specifiesObjectStore(Entity2)).toBeTruthy()
-
-    class Entity3 {
-      get objectStore() {
-        return "foo"
-      }
-    }
-    expect(utils.specifiesObjectStore(Entity3)).toBeFalsy()
   })
 
 })
