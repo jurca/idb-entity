@@ -16,7 +16,13 @@ export default function async(generator) {
         Promise.resolve(value).then(resolve).catch(reject)
       }
 
-      Promise.resolve(value).then(resume).catch(reject)
+      Promise.resolve(value).then(resume).catch((error) => {
+        try {
+          iterator.throw(error)
+        } catch (err) {
+          reject(err)
+        }
+      })
     }
 
     function resume(awaitedValue) {
