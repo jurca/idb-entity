@@ -54,7 +54,7 @@ export default class TransactionRunner {
     this[PRIVATE.queuedOperations] = []
 
     /**
-     * The indexed-db.es transaction.
+     * The indexed-db.es6 transaction.
      *
      * @type {Transaction}
      */
