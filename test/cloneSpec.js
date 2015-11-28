@@ -1,5 +1,4 @@
 
-import async from "./async"
 import clone from "../es2015/clone"
 import equals from "../es2015/equals"
 
@@ -55,21 +54,15 @@ describe("clone", () => {
       return
     }
 
-    if (navigator.userAgent.indexOf("Firefox") > -1) {
-      // Creating image bitmaps seems to freeze Firefox at the moment of
-      // writing these tests :(. Maybe it is because of the lack of WebGL
-      // support in the testing environment?
-      done()
-      return
-    }
-
     let canvas = document.createElement("canvas")
     canvas.width = 2
     canvas.height = 2
 
-    async(function * () {
-      let bitmap = yield createImageBitmap(canvas, 0, 0, 2, 2)
+    createImageBitmap(canvas, 0, 0, 2, 2).then((bitmap) => {
       testClone(bitmap, false)
+      done()
+    }).catch((error) => {
+      fail(error)
       done()
     })
   })
