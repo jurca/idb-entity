@@ -12,6 +12,7 @@ import TransactionRunner from "./TransactionRunner"
 const PRIVATE = Object.freeze({
   // fields
   connection: Symbol("connection"),
+  options: Symbol("options"),
   entities: Symbol("entities"),
   entityKeyPaths: Symbol("entityKeyPaths"),
   rwTransactionRunner: Symbol("rwTransactionRunner"),
@@ -33,16 +34,27 @@ export default class EntityManager {
    *
    * @param {Promise<Database>} databaseConnection  The promise that will
    *        resolve to a connection to the database.
+   * @param {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}} options
+   *        Entity manager options. See the constructor of the
+   *        {@linkcode EntityManagerFactory} for details.
    * @param {Map<function(new: AbstractEntity, data: Object<string, *>), (string|string[])>} entityKeyPaths
    *        Shared map of entity classes to entity primary key key paths.
+   * @see EntityManagerFactory#constructor
    */
-  constructor(databaseConnection, entityKeyPaths) {
+  constructor(databaseConnection, options, entityKeyPaths) {
     /**
      * The promise that will resolve to a connection to the database.
      *
      * @type {Promise<Database>}
      */
     this[PRIVATE.connection] = databaseConnection
+
+    /**
+     * The entity manager configuration.
+     *
+     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
+     */
+    this[PRIVATE.options] = options
     
     /**
      * Registry of currently managed entities. The registry is a map of entity
@@ -420,7 +432,11 @@ export default class EntityManager {
 
     this[PRIVATE.rwTransactionRunner] = this[PRIVATE.connection].then((db) => {
       let transaction = db.startTransaction(db.objectStoreNames)
-      return new TransactionRunner(transaction, db.objectStoreNames[0])
+      return new TransactionRunner(
+        transaction,
+        db.objectStoreNames[0],
+        this[PRIVATE.options].idleTransactions
+      )
     })
 
     this[PRIVATE.activeTransaction] = new Transaction(

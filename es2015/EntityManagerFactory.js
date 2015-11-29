@@ -9,10 +9,12 @@ import EntityManager from "./EntityManager"
 const PRIVATE = Object.freeze({
   // fields
   connection: Symbol("connection"),
+  options: Symbol("options"),
   entityKeyPaths: Symbol("entityKeyPaths"),
 
   // methods
-  loadKeyPaths: Symbol("loadKeyPaths")
+  loadKeyPaths: Symbol("loadKeyPaths"),
+  prepareOptions: Symbol("prepareOptions")
 })
 
 /**
@@ -28,8 +30,32 @@ export default class EntityManagerFactory {
    * @param {(Database|Promise<Database>)} databaseConnection The connection to
    *        the database or a promise that will resolve into a connection to
    *        the database.
+   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(Transaction, boolean)=}=}=} options
+   *        Optional entity manager configuration. The
+   *        {@code idleTransactions} option configures how the active
+   *        transactions that have no operations pending will be treated:
+   *        - the {@code ttl} specified the maximum number of milliseconds a
+   *          transaction can be idle (with no pending operations) before it is
+   *          automatically aborted. Defaults to 1 minute (60 000
+   *          milliseconds). The {@code observer} will be notified AFTER the
+   *          transaction has been aborted.
+   *        - the {@code warningDelay} specified the maximum number of
+   *          milliseconds a transaction can be idle (with no pending
+   *          operations) before the observer will be notified about the
+   *          transaction's inactivity. If the value is greater than the
+   *          {@code ttl}, the observer will not receive any warning. Defaults
+   *          to 3 seconds (3 000 milliseconds).
+   *        - the {@code observer} function will be called every time a
+   *          transaction is idle for too long (depending on the {@code ttl}
+   *          and {@code warningDelay} values). The first argument will be the
+   *          transaction at hand. The second argument will be set to
+   *          {@code true} if the transaction has been aborted, it will be set
+   *          to {@code false} otherwise. Defaults to a function that will
+   *          output a warning (when a transaction reaches the
+   *          {@code warningDelay}) or an error (when a transaction reaches the
+   *          {@code ttl}) to the console.
    */
-  constructor(databaseConnection) {
+  constructor(databaseConnection, options = {}) {
     let connectionPromise = databaseConnection instanceof Promise ?
         databaseConnection : Promise.resolve(databaseConnection)
     
@@ -39,6 +65,13 @@ export default class EntityManagerFactory {
      * @type {Promise<Database>}
      */
     this[PRIVATE.connection] = connectionPromise
+
+    /**
+     * The entity manager configuration.
+     *
+     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
+     */
+    this[PRIVATE.options] = this[PRIVATE.prepareOptions](options)
 
     /**
      * Shared cache of primary key key paths for object stores. The keys are
@@ -71,6 +104,7 @@ export default class EntityManagerFactory {
   createEntityManager() {
     return new EntityManager(
       this[PRIVATE.connection],
+      this[PRIVATE.options],
       this[PRIVATE.entityKeyPaths]
     )
   }
@@ -103,5 +137,38 @@ export default class EntityManagerFactory {
     })
 
     Object.freeze(this[PRIVATE.entityKeyPaths])
+  }
+
+  /**
+   * Prepares the provided options object for use by creating a copy with
+   * filled-in defaults. The returned object will be deep-frozen.
+   *
+   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(Transaction, boolean)=}=}=} providedOptions
+   * @return {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
+   */
+  [PRIVATE.prepareOptions](providedOptions) {
+    let options = Object.assign({
+    }, providedOptions)
+
+    options.idleTransactions = Object.assign({
+      ttl: 60000,
+      warningDelay: 3000,
+      observer: (transaction, isAborted) => {
+        if (isAborted) {
+          console.error("An idle transaction has been aborted for being " +
+              "idle for too long. A transaction must be manually committed " +
+              "or aborted to prevent this from happening.")
+        } else {
+          console.warn("Detected an idle pending transaction. The " +
+              "transaction will be aborted unless a new operation is " +
+              "scheduled or the transaction is committed")
+        }
+      }
+    }, providedOptions.idleTransactions)
+
+    Object.freeze(options.idleTransactions)
+    Object.freeze(options)
+
+    return options
   }
 }

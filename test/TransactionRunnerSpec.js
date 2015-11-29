@@ -119,7 +119,18 @@ describe("TransactionRunner", () => {
 
   function getRunner() {
     let transaction = database.startTransaction(OBJECT_STORE_NAME)
-    return new TransactionRunner(transaction, OBJECT_STORE_NAME)
+    return new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+      ttl: 3000,
+      warningDelay: 1000,
+      observer: (transaction, isAborted) => {
+        if (isAborted) {
+          console.error("A transaction has been aborted due to being idle " +
+            "for too long")
+        } else {
+          console.warn("A transaction is idle for too long")
+        }
+      }
+    })
   }
 
 })

@@ -10,9 +10,12 @@ const PRIVATE = Object.freeze({
   active: Symbol("active"),
   queuedOperations: Symbol("queuedOperations"),
   transaction: Symbol("transaction"),
+  options: Symbol("options"),
+  idleSince: Symbol("idleSince"),
 
   // methods
   initRunner: Symbol("initRunner"),
+  checkIdleStatus: Symbol("checkIdleStatus"),
   executedPendingOperations: Symbol("executedPendingOperations")
 })
 
@@ -29,8 +32,12 @@ export default class TransactionRunner {
    *        transaction.
    * @param {string} keepAliveObjectStoreName The name of the object store to
    *        use to perform the transaction keep-alive operations.
+   * @param {{ttl: number, warningDelay: number, observer: function(Transaction, boolean)}} options
+   *        Configuration for handling pending idle transactions. See the
+   *        constructor of the {@linkcode EntityManagerFactory} for details.
+   * @see EntityManagerFactory#constructor
    */
-  constructor(transaction, keepAliveObjectStoreName) {
+  constructor(transaction, keepAliveObjectStoreName, options) {
     /**
      * A flag signalling whether the transaction has been aborted.
      *
@@ -59,6 +66,21 @@ export default class TransactionRunner {
      * @type {Transaction}
      */
     this[PRIVATE.transaction] = transaction
+
+    /**
+     * Configuration for handling pending idle transactions.
+     *
+     * @type {{ttl: number, warningDelay: number, observer: (function(Transaction, boolean))}}
+     */
+    this[PRIVATE.options] = options
+
+    /**
+     * A UNIX timestamp with millisecond precision marking the moment since
+     * which the transaction has been idle (had no pending operations).
+     *
+     * @type {?number}
+     */
+    this[PRIVATE.idleSince] = null
 
     this[PRIVATE.initRunner](transaction, keepAliveObjectStoreName)
   }
@@ -161,6 +183,8 @@ export default class TransactionRunner {
     keepAlive.call(this)
 
     function keepAlive() {
+      this[PRIVATE.checkIdleStatus]()
+
       this[PRIVATE.executedPendingOperations](transaction)
 
       objectStore.get(Number.MIN_SAFE_INTEGER).then(() => {
@@ -175,6 +199,33 @@ export default class TransactionRunner {
           this[PRIVATE.executedPendingOperations](transaction)
         }
       })
+    }
+  }
+
+  /**
+   * Checks whether the transaction is idle (has no pending operations), how
+   * long it has been idle and whether the transaction should be aborted and/or
+   * the idle transaction observer notified.
+   */
+  [PRIVATE.checkIdleStatus]() {
+    if (!this[PRIVATE.idleSince]) {
+      if (!this[PRIVATE.queuedOperations].length) {
+        this[PRIVATE.idleSince] = Date.now()
+      }
+      return
+    }
+
+    if (this[PRIVATE.queuedOperations].length) {
+      this[PRIVATE.idleSince] = null
+      return
+    }
+
+    let idleDuration = Date.now() - this[PRIVATE.idleSince]
+    if (idleDuration > this[PRIVATE.options].ttl) {
+      this.abort()
+      this[PRIVATE.options].observer(this, true)
+    } else if (idleDuration > this[PRIVATE.options].warningDelay) {
+      this[PRIVATE.options].observer(this, true)
     }
   }
 
