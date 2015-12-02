@@ -102,6 +102,50 @@ describe("TransactionRunner", () => {
     })
   })
 
+  promiseIt("should notify the observer if a transaction is idle", () => {
+    let notifiedCount = 0
+    return runner.commit().then(() => {
+      let transaction = database.startTransaction(OBJECT_STORE_NAME)
+      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+        ttl: 10000,
+        warningDelay: 10,
+        observer: (idleTransactionRunner, isAborted) => {
+          if (isAborted) {
+            throw new Error("The transaction must not be aborted")
+          }
+
+          expect(idleTransactionRunner).toBe(runner)
+          notifiedCount++
+        }
+      })
+    }).then(() => delay(1000)).then(() => {
+      expect(notifiedCount).toBe(1)
+      return runner.commit()
+    })
+  })
+
+  promiseIt("should notify the observer if a transaction is aborted due to " +
+      "being inactive", () => {
+    let notifiedCount = 0
+    return runner.commit().then(() => {
+      let transaction = database.startTransaction(OBJECT_STORE_NAME)
+      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+        ttl: 10,
+        warningDelay: 10000,
+        observer: (idleTransactionRunner, isAborted) => {
+          if (!isAborted) {
+            throw new Error("The warning should not have been issued")
+          }
+
+          expect(idleTransactionRunner).toBe(runner)
+          notifiedCount++
+        }
+      })
+    }).then(() => delay(1000)).then(() => {
+      expect(notifiedCount).toBe(1)
+    })
+  })
+
   function promiseIt(behavior, test) {
     it(behavior, (done) => {
       test().then(done).catch((error) => {
