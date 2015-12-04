@@ -36,7 +36,7 @@ export default class TransactionRunner {
    *        use to perform the transaction keep-alive operations.
    * @param {Transaction} entityTransaction The entity manager's transaction
    *        using this transaction runner.
-   * @param {{ttl: number, warningDelay: number, observer: function(Transaction, boolean)}} options
+   * @param {{ttl: number, warningDelay: number, observer: function(Transaction, boolean, ?Error)}} options
    *        Configuration for handling pending idle transactions. See the
    *        constructor of the {@linkcode EntityManagerFactory} for details.
    * @see EntityManagerFactory#constructor
@@ -82,7 +82,7 @@ export default class TransactionRunner {
     /**
      * Configuration for handling pending idle transactions.
      *
-     * @type {{ttl: number, warningDelay: number, observer: (function(Transaction, boolean))}}
+     * @type {{ttl: number, warningDelay: number, observer: (function(Transaction, boolean, ?Error))}}
      */
     this[PRIVATE.options] = options
 
@@ -242,21 +242,21 @@ export default class TransactionRunner {
     }
 
     let idleDuration = Date.now() - this[PRIVATE.idleSince]
-    if (idleDuration > this[PRIVATE.options].ttl) {
+    let options = this[PRIVATE.options]
+    if (idleDuration > options.ttl) {
       if (this[PRIVATE.aborted]) {
         return
       }
       this.abort().catch((error) => {
-        // we already notified the observer of this abort error, ignore
-        // TODO: maybe send the error to the observer?
+        options.observer(this[PRIVATE.entityTransaction], true, error)
       })
-      this[PRIVATE.options].observer(this[PRIVATE.entityTransaction], true)
-    } else if (idleDuration > this[PRIVATE.options].warningDelay) {
+      options.observer(this[PRIVATE.entityTransaction], true, null)
+    } else if (idleDuration > options.warningDelay) {
       if (this[PRIVATE.idleWarningSent]) {
         return
       }
       this[PRIVATE.idleWarningSent] = true
-      this[PRIVATE.options].observer(this[PRIVATE.entityTransaction], false)
+      options.observer(this[PRIVATE.entityTransaction], false, null)
     }
   }
 

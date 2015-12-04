@@ -109,7 +109,7 @@ describe("TransactionRunner", () => {
       runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
         ttl: 10000,
         warningDelay: 10,
-        observer: (idleTransaction, isAborted) => {
+        observer: (idleTransaction, isAborted, error) => {
           if (isAborted) {
             throw new Error("The transaction must not be aborted")
           }
@@ -132,17 +132,49 @@ describe("TransactionRunner", () => {
       runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
         ttl: 10,
         warningDelay: 10000,
-        observer: (idleTransaction, isAborted) => {
+        observer: (idleTransaction, isAborted, error) => {
           if (!isAborted) {
             throw new Error("The warning should not have been issued")
           }
 
           expect(idleTransaction).toBeNull()
-          notifiedCount++
+          if (!error) {
+            notifiedCount++
+          }
         }
       })
     }).then(() => delay(1000)).then(() => {
       expect(notifiedCount).toBe(1)
+    })
+  })
+
+  promiseIt("should notify the observer after a transaction has been " +
+      "completely aborted due to being inactive", () => {
+    let startNotifiedCount = 0
+    let endNotifiedCount = 0
+    return runner.commit().then(() => {
+      let transaction = database.startTransaction(OBJECT_STORE_NAME)
+      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
+        ttl: 10,
+        warningDelay: 10000,
+        observer: (idleTransaction, isAborted, error) => {
+          expect(idleTransaction).toBeNull()
+
+          if (!isAborted) {
+            throw new Error("The warning should not have been issued")
+          }
+
+          if (error) {
+            expect(error.name).toBe("AbortError")
+            endNotifiedCount++
+          } else {
+            startNotifiedCount++
+          }
+        }
+      })
+    }).then(() => delay(1000)).then(() => {
+      expect(startNotifiedCount).toBe(1)
+      expect(endNotifiedCount).toBe(1)
     })
   })
 
