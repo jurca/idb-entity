@@ -10,6 +10,7 @@ const PRIVATE = Object.freeze({
   active: Symbol("active"),
   queuedOperations: Symbol("queuedOperations"),
   transaction: Symbol("transaction"),
+  entityTransaction: Symbol("entityTransaction"),
   options: Symbol("options"),
   idleSince: Symbol("idleSince"),
   idleWarningSent: Symbol("idleWarningSent"),
@@ -33,12 +34,15 @@ export default class TransactionRunner {
    *        transaction.
    * @param {string} keepAliveObjectStoreName The name of the object store to
    *        use to perform the transaction keep-alive operations.
-   * @param {{ttl: number, warningDelay: number, observer: function(TransactionRunner, boolean)}} options
+   * @param {Transaction} entityTransaction The entity manager's transaction
+   *        using this transaction runner.
+   * @param {{ttl: number, warningDelay: number, observer: function(Transaction, boolean)}} options
    *        Configuration for handling pending idle transactions. See the
    *        constructor of the {@linkcode EntityManagerFactory} for details.
    * @see EntityManagerFactory#constructor
    */
-  constructor(transaction, keepAliveObjectStoreName, options) {
+  constructor(transaction, keepAliveObjectStoreName, entityTransaction,
+      options) {
     /**
      * A flag signalling whether the transaction has been aborted.
      *
@@ -69,9 +73,16 @@ export default class TransactionRunner {
     this[PRIVATE.transaction] = transaction
 
     /**
+     * The entity manager's transaction using this transaction runner.
+     *
+     * @type {Transaction}
+     */
+    this[PRIVATE.entityTransaction] = entityTransaction
+
+    /**
      * Configuration for handling pending idle transactions.
      *
-     * @type {{ttl: number, warningDelay: number, observer: (function(TransactionRunner, boolean))}}
+     * @type {{ttl: number, warningDelay: number, observer: (function(Transaction, boolean))}}
      */
     this[PRIVATE.options] = options
 
@@ -239,15 +250,13 @@ export default class TransactionRunner {
         // we already notified the observer of this abort error, ignore
         // TODO: maybe send the error to the observer?
       })
-      // TODO: it would be nice to pass the high-level transaction to the
-      // observer instead of this transaction runner
-      this[PRIVATE.options].observer(this, true)
+      this[PRIVATE.options].observer(this[PRIVATE.entityTransaction], true)
     } else if (idleDuration > this[PRIVATE.options].warningDelay) {
       if (this[PRIVATE.idleWarningSent]) {
         return
       }
       this[PRIVATE.idleWarningSent] = true
-      this[PRIVATE.options].observer(this, false)
+      this[PRIVATE.options].observer(this[PRIVATE.entityTransaction], false)
     }
   }
 

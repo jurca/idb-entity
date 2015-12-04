@@ -30,7 +30,7 @@ export default class EntityManagerFactory {
    * @param {(Database|Promise<Database>)} databaseConnection The connection to
    *        the database or a promise that will resolve into a connection to
    *        the database.
-   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(TransactionRunner, boolean)=}=}=} options
+   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(Transaction, boolean)=}=}=} options
    *        Optional entity manager configuration. The
    *        {@code idleTransactions} option configures how the active
    *        transactions that have no operations pending will be treated:
@@ -48,12 +48,12 @@ export default class EntityManagerFactory {
    *        - the {@code observer} function will be called every time a
    *          transaction is idle for too long (depending on the {@code ttl}
    *          and {@code warningDelay} values). The first argument will be the
-   *          transaction runner wrapping the transaction at hand. The second
-   *          argument will be set to {@code true} if the transaction has been
-   *          aborted, it will be set to {@code false} otherwise. Defaults to a
-   *          function that will output a warning (when a transaction reaches
-   *          the {@code warningDelay}) or an error (when a transaction reaches
-   *          the {@code ttl}) to the console.
+   *          entity manager transaction at hand. The second argument will be
+   *          set to {@code true} if the transaction has been aborted, it will
+   *          be set to {@code false} otherwise. Defaults to a function that
+   *          will output a warning (when a transaction reaches the
+   *          {@code warningDelay}) or an error (when a transaction reaches the
+   *          {@code ttl}) to the console.
    */
   constructor(databaseConnection, options = {}) {
     let connectionPromise = databaseConnection instanceof Promise ?
@@ -69,7 +69,7 @@ export default class EntityManagerFactory {
     /**
      * The entity manager configuration.
      *
-     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(TransactionRunner, boolean)}}}
+     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
      */
     this[PRIVATE.options] = this[PRIVATE.prepareOptions](options)
 
@@ -143,8 +143,8 @@ export default class EntityManagerFactory {
    * Prepares the provided options object for use by creating a copy with
    * filled-in defaults. The returned object will be deep-frozen.
    *
-   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(TransactionRunner, boolean)=}=}=} providedOptions
-   * @return {{idleTransactions: {ttl: number, warningDelay: number, observer: function(TransactionRunner, boolean)}}}
+   * @param {{idleTransactions: {ttl: number=, warningDelay: number=, observer: function(Transaction, boolean)=}=}=} providedOptions
+   * @return {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
    */
   [PRIVATE.prepareOptions](providedOptions) {
     let options = Object.assign({
@@ -153,7 +153,7 @@ export default class EntityManagerFactory {
     options.idleTransactions = Object.assign({
       ttl: 60000,
       warningDelay: 3000,
-      observer: (transactionRunner, isAborted) => {
+      observer: (transaction, isAborted) => {
         if (isAborted) {
           console.error("An idle transaction has been aborted for being " +
               "idle for too long. A transaction must be manually committed " +

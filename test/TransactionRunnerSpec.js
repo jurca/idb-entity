@@ -106,15 +106,15 @@ describe("TransactionRunner", () => {
     let notifiedCount = 0
     return runner.commit().then(() => {
       let transaction = database.startTransaction(OBJECT_STORE_NAME)
-      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
         ttl: 10000,
         warningDelay: 10,
-        observer: (idleTransactionRunner, isAborted) => {
+        observer: (idleTransaction, isAborted) => {
           if (isAborted) {
             throw new Error("The transaction must not be aborted")
           }
 
-          expect(idleTransactionRunner).toBe(runner)
+          expect(idleTransaction).toBeNull()
           notifiedCount++
         }
       })
@@ -129,15 +129,15 @@ describe("TransactionRunner", () => {
     let notifiedCount = 0
     return runner.commit().then(() => {
       let transaction = database.startTransaction(OBJECT_STORE_NAME)
-      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+      runner = new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
         ttl: 10,
         warningDelay: 10000,
-        observer: (idleTransactionRunner, isAborted) => {
+        observer: (idleTransaction, isAborted) => {
           if (!isAborted) {
             throw new Error("The warning should not have been issued")
           }
 
-          expect(idleTransactionRunner).toBe(runner)
+          expect(idleTransaction).toBeNull()
           notifiedCount++
         }
       })
@@ -163,7 +163,7 @@ describe("TransactionRunner", () => {
 
   function getRunner() {
     let transaction = database.startTransaction(OBJECT_STORE_NAME)
-    return new TransactionRunner(transaction, OBJECT_STORE_NAME, {
+    return new TransactionRunner(transaction, OBJECT_STORE_NAME, null, {
       ttl: 3000,
       warningDelay: 1000,
       observer: (transaction, isAborted) => {

@@ -34,7 +34,7 @@ export default class EntityManager {
    *
    * @param {Promise<Database>} databaseConnection  The promise that will
    *        resolve to a connection to the database.
-   * @param {{idleTransactions: {ttl: number, warningDelay: number, observer: function(TransactionRunner, boolean)}}} options
+   * @param {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}} options
    *        Entity manager options. See the constructor of the
    *        {@linkcode EntityManagerFactory} for details.
    * @param {Map<function(new: AbstractEntity, data: Object<string, *>), (string|string[])>} entityKeyPaths
@@ -52,7 +52,7 @@ export default class EntityManager {
     /**
      * The entity manager configuration.
      *
-     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(TransactionRunner, boolean)}}}
+     * @type {{idleTransactions: {ttl: number, warningDelay: number, observer: function(Transaction, boolean)}}}
      */
     this[PRIVATE.options] = options
     
@@ -435,6 +435,7 @@ export default class EntityManager {
       return new TransactionRunner(
         transaction,
         db.objectStoreNames[0],
+        this[PRIVATE.activeTransaction],
         this[PRIVATE.options].idleTransactions
       )
     })
