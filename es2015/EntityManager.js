@@ -546,12 +546,13 @@ export default class EntityManager {
       return this[PRIVATE.manage](entityClass, keyPath, entity)
     }
 
+    let entityClone = clone(entity)
     let managedEntity = this[PRIVATE.manage](
       entityClass,
       keyPath,
-      entity
+      entityClone // prevent conflict in persistence context
     )
-    Object.assign(managedEntity, clone(entity))
+    Object.assign(managedEntity, entityClone)
 
     return managedEntity
   }
@@ -649,6 +650,15 @@ export default class EntityManager {
     let serializedKey = serializeKey(primaryKey)
 
     if (entities.has(serializedKey)) {
+      if (entityData instanceof AbstractEntity) {
+        throw new Error("It appears an attempt was made to add multiple " +
+            "instances of the same entity into the persistence context of a " +
+            "single entity manager, probably using by using the persist() " +
+            "method on two entities with the same object store and primary " +
+            "key. This is a persistence conflict and the latter entity will " +
+            "be rejected. To merge the state of these entities into a " +
+            "single persistence context, use the merge() method instead.")
+      }
       return entities.get(serializedKey).entity
     }
 
