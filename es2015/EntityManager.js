@@ -625,8 +625,9 @@ export default class EntityManager {
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
    *        class.
    * @param {(string|string[])} keyPath Entity primary key key path.
-   * @param {Object<string, *>} entityData The record containing the data from
-   *        which the entity should be constructed.
+   * @param {(Object<string, *>|T)} entityData The record containing the data
+   *        from which the entity should be constructed, or an existing entity
+   *        to manage.
    * @return {T} The already managed entity or a newly created managed entity
    *         created out of the provided data.
    */
@@ -636,7 +637,12 @@ export default class EntityManager {
     }
 
     let entities = this[PRIVATE.entities].get(entityClass)
-    let entity = new entityClass(entityData)
+    let entity
+    if (entityData instanceof AbstractEntity) {
+      entity = entityData
+    } else {
+      entity = new entityClass(entityData)
+    }
     let primaryKey = getPrimaryKey(entity, keyPath)
     let serializedKey = serializeKey(primaryKey)
 
