@@ -372,7 +372,7 @@ export default class Transaction {
     }
 
     return new Promise((resolve, reject) => {
-      this[PRIVATE.transactionRunner].queuedOperations((transaction) => {
+      this[PRIVATE.transactionRunner].queueOperation((transaction) => {
         try {
           let provider = this[PRIVATE.getOperationsProvider](transaction)
           operation(provider).then(resolve).catch(reject)
