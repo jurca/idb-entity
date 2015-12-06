@@ -192,7 +192,7 @@ export default class EntityManager {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
         return objectStore.get(primaryKey)
       })
-    }).then(entityData => entityData || null)
+    }).then(entityData => (new entityClass(entityData)) || null)
   }
 
   /**
@@ -242,6 +242,8 @@ export default class EntityManager {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
         return objectStore.query(filter, order, offset, limit)
       })
+    }).then((records) => {
+      return records.map(record => new entityClass(record))
     })
   }
 
