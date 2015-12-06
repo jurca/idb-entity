@@ -1,5 +1,6 @@
 
 import {validateEntityClass, setPrimaryKey, getPrimaryKey} from "./utils"
+import AbstractEntity from "./AbstractEntity"
 
 /**
  * Private field and method symbols.
