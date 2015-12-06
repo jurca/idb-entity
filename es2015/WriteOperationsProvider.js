@@ -205,8 +205,17 @@ export default class WriteOperationsProvider {
     let keyPath = objectStore.keyPath
 
     return new Promise((resolve, reject) => {
-      objectStore.query(filter, order, offset, limit).then((records) => {
-        return Promise.all(records.map((record) => {
+      let queryPromise = objectStore.query(
+        filter,
+        order,
+        offset,
+        limit
+      ).then((records) => {
+        // Since we have no guarantee under what module path the
+        // indexed-db.es6's PromiseSync class will be available, we have to
+        // obtain a reference to it like this
+        const PromiseSync = queryPromise.constructor
+        return PromiseSync.all(records.map((record) => {
           let primaryKey = getPrimaryKey(record, keyPath)
           return objectStore.delete(primaryKey).then(() => {
             let entityManager = this[PRIVATE.entityManager]
