@@ -1,4 +1,6 @@
 
+import AbstractEntity from "./AbstractEntity"
+
 /**
  * Types of the typed array supported in the current environment.
  * 
@@ -102,7 +104,7 @@ function cloneValue(value, traversedValues) {
     return cloneSet(value, traversedValues)
   }
 
-  if (isPlainObject(value)) {
+  if (isPlainObjectOrEntity(value)) {
     return cloneObject(value, traversedValues)
   }
 
@@ -261,13 +263,16 @@ function cloneStructure(keys, getter, setter, traversedValues) {
  * Returns {@code true} if the provided value is a plain object.
  *
  * @param {*} value The value to test.
- * @returns {boolean} {@code} if the provided value is a plain object.
+ * @returns {boolean} {@code} if the provided value is a plain object or an
+ *          entity.
  */
-function isPlainObject(value) {
-  return (value instanceof Object) &&
-      (
-        (Object.getPrototypeOf(value) === Object.prototype) ||
-        (Object.getPrototypeOf(value) === null)
+function isPlainObjectOrEntity(value) {
+  return (value instanceof AbstractEntity) || (
+        (value instanceof Object) &&
+        (
+          (Object.getPrototypeOf(value) === Object.prototype) ||
+          (Object.getPrototypeOf(value) === null)
+        )
       )
 }
 
