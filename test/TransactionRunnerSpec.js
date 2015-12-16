@@ -2,7 +2,7 @@
 import DBFactory from "../node_modules/indexed-db.es6/es2015/DBFactory"
 import TransactionRunner from "../es2015/TransactionRunner"
 
-describe("TransactionRunner", () => {
+fdescribe("TransactionRunner", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
@@ -74,6 +74,7 @@ describe("TransactionRunner", () => {
       if (failed) {
         throw new Error("The transaction must be aborted with an error")
       }
+      expect(error.name).toBe("AbortError")
     })
   })
 
