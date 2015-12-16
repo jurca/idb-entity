@@ -26,7 +26,8 @@ const PRIVATE = Object.freeze({
 
   // methods
   getOperationsProvider: Symbol("getOperationsProvider"),
-  runOperation: Symbol("runOperation")
+  runOperation: Symbol("runOperation"),
+  deleteExtraneousFields: Symbol("deleteExtraneousFields")
 })
 
 /**
@@ -213,6 +214,7 @@ export default class Transaction {
         for (let dataAndEntity of entities.values()) {
           let entity = dataAndEntity.entity
           Object.assign(entity, clone(dataAndEntity.data))
+          this[PRIVATE.deleteExtraneousFields](entity, dataAndEntity.data)
         }
       }
 
@@ -397,5 +399,24 @@ export default class Transaction {
       this[PRIVATE.manageEntity],
       this[PRIVATE.entityManager]
     )
+  }
+
+  /**
+   * Deletes all fields from the target object that are not present in the mask
+   * object.
+   *
+   * @param {Object<string, *>} target The object that should have its fields
+   *        filtered according to the mask.
+   * @param {Object<string, *>} mask An object that acts as a mask, specifying
+   *        which fields are allowed in the target.
+   */
+  [PRIVATE.deleteExtraneousFields](target, mask) {
+    for (let fieldName of Object.keys(target)) {
+      if (mask.hasOwnProperty(fieldName)) {
+        continue
+      }
+
+      delete target[fieldName]
+    }
   }
 }
