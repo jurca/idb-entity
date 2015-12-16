@@ -201,7 +201,7 @@ export default class Transaction {
       throw new Error("Unexpected transaction end. Has the transaction " +
           "been already committed?")
     }).catch((error) => {
-      if (error.name === "Error") {
+      if (error.name !== "AbortError") {
         throw error
       }
 
