@@ -2,7 +2,7 @@
 import DBFactory from "../node_modules/indexed-db.es6/es2015/DBFactory"
 import TransactionRunner from "../es2015/TransactionRunner"
 
-fdescribe("TransactionRunner", () => {
+describe("TransactionRunner", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
