@@ -211,7 +211,7 @@ export default class Transaction {
       // let's revert any entity modifications
       for (let entities of this[PRIVATE.entities].values()) {
         for (let dataAndEntity of entities.values()) {
-          let entity = dataAndEntity.entity;
+          let entity = dataAndEntity.entity
           Object.assign(entity, clone(dataAndEntity.data))
         }
       }
