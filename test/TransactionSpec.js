@@ -168,6 +168,50 @@ describe("Transaction", () => {
     })
   })
 
+  promiseIt("should persist new entities", () => {
+    return transaction.persist(new Entity({
+      foo: {
+        bar: "baz"
+      }
+    })).then((entity) => {
+      expect(Object.assign({}, entity)).toEqual({
+        id: 3,
+        foo: {
+          bar: "baz"
+        }
+      })
+      return transaction.commit()
+    })
+  })
+
+  promiseIt("must not allow persisting entities after committing", () => {
+    let commitPromise = transaction.commit()
+    expect(() => {
+      transaction.persist(new Entity({ stuff: 1 }))
+    }).toThrow()
+    return commitPromise
+  })
+
+  promiseIt("should delete existing entities", () => {
+    return transaction.remove(Entity, 1).then(() => {
+      return transaction.commit()
+    }).then(() => {
+      return database.runReadOnlyTransaction(OBJECT_STORE_NAME, (store) => {
+        return store.count()
+      })
+    }).then((count) => {
+      expect(count).toBe(1)
+    })
+  })
+
+  promiseIt("must not allow deleting entities after committing", () => {
+    let commitPromise = transaction.commit()
+    expect(() => {
+      transaction.remove(Entity, 1)
+    }).toThrow()
+    return commitPromise
+  })
+
   function promiseIt(behavior, test) {
     it(behavior, (done) => {
       test().then(done).catch((error) => {
