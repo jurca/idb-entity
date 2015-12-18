@@ -192,7 +192,13 @@ export default class EntityManager {
       return database.runReadOnlyTransaction(storeName, (objectStore) => {
         return objectStore.get(primaryKey)
       })
-    }).then(entityData => (new entityClass(entityData)) || null)
+    }).then((entityData) => {
+      if (entityData) {
+        return new entityClass(entityData)
+      }
+
+      return null
+    })
   }
 
   /**
