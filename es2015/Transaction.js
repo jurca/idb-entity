@@ -304,6 +304,10 @@ export default class Transaction {
     }
 
     return (entityCallback) => {
+      if (!this[PRIVATE.active]) {
+        throw new Error("The transaction is no longer active")
+      }
+
       return this[PRIVATE.runOperation]((operationsProvider) => {
         return operationsProvider.updateQuery(
           entityClass,

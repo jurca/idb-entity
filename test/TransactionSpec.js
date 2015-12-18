@@ -19,6 +19,7 @@ describe("Transaction", () => {
   let transaction
   let rawRecords
   let entities
+  let detachedEntities
 
   class Entity extends AbstractEntity {
     static get objectStore() {
@@ -29,6 +30,7 @@ describe("Transaction", () => {
   beforeEach((done) => {
     containsByPrimaryKey = false
     completionCalled = false
+    detachedEntities = []
 
     rawRecords = [
       {
@@ -213,6 +215,80 @@ describe("Transaction", () => {
     return commitPromise
   })
 
+  promiseIt("should perform update queries", () => {
+    let entitiesAndData = entities.get(Entity)
+    return transaction.persist(new Entity({
+      skip: true
+    })).then(() => {
+      return transaction.updateQuery(
+        Entity,
+        record => !record.skip
+      )((entity) => {
+        expect(entity instanceof Entity).toBeTruthy()
+        expect(entity.skip).toBeUndefined()
+        entity.updated = 1
+        let serializedId = serializeKey(entity.id)
+        expect(entity).toBe(entitiesAndData.get(serializedId).entity)
+      })
+    }).then((updatedCount) => {
+      expect(updatedCount).toBe(2)
+      return transaction.commit()
+    }).then(() => {
+      return database.runReadOnlyTransaction(OBJECT_STORE_NAME, (store) => {
+        return store.count({
+          updated: 1
+        })
+      })
+    }).then((count) => {
+      expect(count).toBe(2)
+    })
+  })
+
+  promiseIt("must not allow running update queries on inactive transactions",
+      () => {
+    let queryFactory = transaction.updateQuery(Entity)
+    let commitPromise = transaction.commit()
+    expect(() => {
+      transaction.updateQuery(Entity)
+    }).toThrow()
+    expect(() => {
+      queryFactory(() => {})
+    }).toThrow()
+    return commitPromise
+  })
+
+  promiseIt("should perform delete queries", () => {
+    containsByPrimaryKey = true
+    return transaction.deleteQuery(
+      Entity,
+      null,
+      "prev",
+      0,
+      1
+    ).then((count) => {
+      expect(count).toBe(1)
+      expect(detachedEntities.length).toBe(1)
+      expect(detachedEntities[0] instanceof Entity).toBeTruthy()
+      expect(detachedEntities[0].id).toBe(2)
+      return transaction.commit()
+    }).then(() => {
+      return database.runReadOnlyTransaction(OBJECT_STORE_NAME, (store) => {
+        return store.count()
+      })
+    }).then((count) => {
+      expect(count).toBe(1)
+    })
+  })
+
+  promiseIt("must not allow running delete queries on inactive transactions",
+      () => {
+    let commitPromise = transaction.commit()
+    expect(() => {
+      transaction.deleteQuery(Entity)
+    }).toThrow()
+    return commitPromise
+  })
+
   function getTransaction() {
     let mockTransaction = {}
     let runner = new TransactionRunner(
@@ -239,12 +315,26 @@ describe("Transaction", () => {
         containsByPrimaryKey(_, __) {
           return containsByPrimaryKey
         }
+
+        detach(entity) {
+          detachedEntities.push(entity)
+        }
+
+        find(_, key) {
+          return entities.get(Entity).get(serializeKey(key)).entity
+        }
       }),
       Promise.resolve(runner),
       entities,
       (entityClass, keyPath, data) => {
         if (data instanceof entityClass) {
           return data
+        }
+
+        let entitiesAndData = entities.get(Entity)
+        let key = serializeKey(data.id)
+        if (entitiesAndData.has(key)) {
+          return entitiesAndData.get(key).entity
         }
 
         return new entityClass(data)
