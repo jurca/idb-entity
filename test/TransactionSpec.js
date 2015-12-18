@@ -63,7 +63,6 @@ describe("Transaction", () => {
             entity: new Entity(record)
           })
 
-          rawRecords.slice().pop()
           if (record === rawRecords.slice().pop()) {
             done()
           }
