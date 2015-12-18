@@ -5,6 +5,7 @@ import EntityManager from "../es2015/EntityManager"
 import Transaction from "../es2015/Transaction"
 import TransactionRunner from "../es2015/TransactionRunner"
 import {serializeKey, equals} from "../es2015/utils"
+import {promiseIt, delay} from "./testUtils"
 
 describe("Transaction", () => {
 
@@ -211,21 +212,6 @@ describe("Transaction", () => {
     }).toThrow()
     return commitPromise
   })
-
-  function promiseIt(behavior, test) {
-    it(behavior, (done) => {
-      test().then(done).catch((error) => {
-        fail(error)
-        done()
-      })
-    })
-  }
-
-  function delay(time) {
-    return new Promise((resolve) => {
-      setTimeout(resolve, time)
-    })
-  }
 
   function getTransaction() {
     let mockTransaction = {}

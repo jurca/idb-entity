@@ -1,6 +1,7 @@
 
 import DBFactory from "../node_modules/indexed-db.es6/es2015/DBFactory"
 import TransactionRunner from "../es2015/TransactionRunner"
+import {promiseIt, delay} from "./testUtils"
 
 describe("TransactionRunner", () => {
 
@@ -178,21 +179,6 @@ describe("TransactionRunner", () => {
       expect(endNotifiedCount).toBe(1)
     })
   })
-
-  function promiseIt(behavior, test) {
-    it(behavior, (done) => {
-      test().then(done).catch((error) => {
-        fail(error)
-        done()
-      })
-    })
-  }
-
-  function delay(time) {
-    return new Promise((resolve) => {
-      setTimeout(resolve, time)
-    })
-  }
 
   function getRunner() {
     let transaction = database.startTransaction(OBJECT_STORE_NAME)

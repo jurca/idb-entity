@@ -3,6 +3,7 @@ import DBFactory from "../node_modules/indexed-db.es6/es2015/DBFactory"
 import AbstractEntity from "../es2015/AbstractEntity"
 import EntityManager from "../es2015/EntityManager"
 import WriteOperationsProvider from "../es2015/WriteOperationsProvider"
+import {promiseIt} from "./testUtils"
 
 describe("WriteOperationsProvider", () => {
 
@@ -241,15 +242,6 @@ describe("WriteOperationsProvider", () => {
       expect(detachCalled).toBe(2)
     })
   })
-
-  function promiseIt(behavior, test) {
-    it(behavior, (done) => {
-      test().then(done).catch((error) => {
-        fail(error)
-        done()
-      })
-    })
-  }
 
   function getProvider() {
     return new WriteOperationsProvider(

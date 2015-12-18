@@ -1,5 +1,5 @@
 
-module.exports = function(config) {
+module.exports = function (config) {
   config.set({
 
     // base path that will be used to resolve all patterns (eg. files, exclude)
@@ -16,6 +16,7 @@ module.exports = function(config) {
       "node_modules/karma-babel-preprocessor/node_modules/babel-core/browser-polyfill.js",
       {pattern: "es2015/**/*.js", included: false},
       {pattern: "node_modules/indexed-db.es6/es2015/**/*.js", included: false},
+      {pattern: "test/testUtils.js", included: false},
       {pattern: "test/**/*Spec.js", included: false},
       "test/main.js"
     ],
@@ -32,6 +33,7 @@ module.exports = function(config) {
     preprocessors: {
       "es2015/**/*.js": ["babel"],
       "node_modules/indexed-db.es6/es2015/**/*.js": ["babel"],
+      "test/testUtils.js": ["babel"],
       "test/**/*Spec.js": ["babel"]
     },
 
