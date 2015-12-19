@@ -489,7 +489,14 @@ export default class EntityManager {
     }).then((result) => {
       return transaction.commit().then(() => result)
     }).catch((error) => {
-      transaction.abort()
+      transaction.abort().catch((error) => {
+        if (error && error.name === "AbortError") {
+          return // transaction successfully aborted
+        }
+
+        console.error("Encountered an unexpected error while trying to " +
+            "abort a transaction due to an error", error)
+      })
       throw error
     })
   }
