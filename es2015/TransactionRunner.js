@@ -220,6 +220,12 @@ export default class TransactionRunner {
           this[PRIVATE.executedPendingOperations](transaction)
         }
       }).catch((error) => {
+        if (this[PRIVATE.aborted]) {
+          // The transaction has been aborted, this is most likely the reason
+          // why the keep-alive operation has failed.
+          return
+        }
+
         console.error("The transaction runner has encountered a fatal " +
             "error, the transaction will be aborted", error)
         this.abort().catch((abortError) => {
