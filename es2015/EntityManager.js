@@ -113,11 +113,11 @@ export default class EntityManager {
     let keyPath = this[PRIVATE.entityKeyPaths].get(entityClass.objectStore)
     let primaryKey = getPrimaryKey(entity, keyPath)
     let serializedKey = serializeKey(primaryKey)
-    if (!keysToEntities.has(serializeKey(serializedKey))) {
+    if (!keysToEntities.has(serializedKey)) {
       return false
     }
 
-    return keysToEntities.get(serializeKey(serializedKey)).entity === entity
+    return keysToEntities.get(serializedKey).entity === entity
   }
 
   /**
@@ -141,9 +141,7 @@ export default class EntityManager {
 
     let keysToEntities = this[PRIVATE.entities].get(entityClass)
     let serializedKey = serializeKey(primaryKey)
-    if (!keysToEntities.has(serializeKey(serializedKey))) {
-      return false
-    }
+    return keysToEntities.has(serializedKey)
   }
 
   /**
