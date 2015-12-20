@@ -110,7 +110,8 @@ export default class TransactionRunner {
    * possible. The operation will not be executed if the transaction gets
    * aborted before the transaction runner is able to execute the operation.
    *
-   * @param {function(Transaction)} operation
+   * @param {function(Transaction)} operation A callback representing the
+   *        operation to execute as soon as possible.
    */
   queueOperation(operation) {
     if (this[PRIVATE.aborted]) {
