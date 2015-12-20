@@ -219,6 +219,14 @@ export default class TransactionRunner {
           // finish pending operations
           this[PRIVATE.executedPendingOperations](transaction)
         }
+      }).catch((error) => {
+        console.error("The transaction runner has encountered a fatal " +
+            "error, the transaction will be aborted", error)
+        this.abort().catch((abortError) => {
+          if (abortError.name !== "AbortError") {
+            throw abortError
+          }
+        })
       })
     }
   }
