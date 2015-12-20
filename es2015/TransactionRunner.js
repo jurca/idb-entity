@@ -102,6 +102,18 @@ export default class TransactionRunner {
      */
     this[PRIVATE.idleWarningSent] = false
 
+    let readOnlyFields = [
+      PRIVATE.transaction,
+      PRIVATE.entityTransaction,
+      PRIVATE.options
+    ]
+    for (let readOnlyField of readOnlyFields) {
+      Object.defineProperty(this, readOnlyField, {
+        writable: false
+      })
+    }
+    Object.seal(this)
+
     this[PRIVATE.initRunner](transaction, keepAliveObjectStoreName)
   }
 

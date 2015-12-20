@@ -114,6 +114,20 @@ export default class Transaction {
      */
     this[PRIVATE.active] = true
 
+    let readOnlyFields = [
+      PRIVATE.entityManager,
+      PRIVATE.transactionRunnerPromise,
+      PRIVATE.entities,
+      PRIVATE.manageEntity,
+      PRIVATE.completionCallback
+    ]
+    for (let readOnlyField of readOnlyFields) {
+      Object.defineProperty(this, readOnlyField, {
+        writable: false
+      })
+    }
+    Object.seal(this)
+
     transactionRunnerPromise.then((transactionRunner) => {
       this[PRIVATE.transactionRunner] = transactionRunner
     })

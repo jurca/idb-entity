@@ -88,6 +88,19 @@ export default class EntityManager {
      * @type {?Transaction}
      */
     this[PRIVATE.activeTransaction] = null
+
+    let readOnlyFields = [
+      PRIVATE.connection,
+      PRIVATE.options,
+      PRIVATE.entities,
+      PRIVATE.entityKeyPaths
+    ]
+    for (let readOnlyField of readOnlyFields) {
+      Object.defineProperty(this, readOnlyField, {
+        writable: false
+      })
+    }
+    Object.seal(this)
   }
 
   /**

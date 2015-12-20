@@ -57,6 +57,8 @@ export default class WriteOperationsProvider {
      * @type {EntityManager}
      */
     this[PRIVATE.entityManager] = entityManager
+
+    Object.freeze(this)
   }
 
   /**
