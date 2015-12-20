@@ -5,7 +5,7 @@ import EntityManager from "../es2015/EntityManager"
 import Transaction from "../es2015/Transaction"
 import {promiseIt, delay} from "./testUtils"
 
-describe("Entity manager", () => {
+fdescribe("Entity manager", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
@@ -61,7 +61,7 @@ describe("Entity manager", () => {
             }
           }
         }
-      }, new Map([[Entity, "id"]]))
+      }, new Map([[OBJECT_STORE_NAME, "id"]]))
 
       done()
       return database
@@ -181,6 +181,102 @@ describe("Entity manager", () => {
       throw error
     }).catch((error) => {
       expect(error.failed).toBeFalsy()
+    })
+  })
+
+  promiseIt("should not contain entities retrieved outside a transaction",
+      () => {
+    return entityManager.find(Entity, 1).then((entity) => {
+      expect(entityManager.contains(entity)).toBeFalsy()
+      expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeFalsy()
+    })
+  })
+
+  promiseIt("should contain entities retrieved within a transaction", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1)
+    }).then((entity) => {
+      expect(entityManager.contains(entity)).toBeTruthy()
+      expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeTruthy()
+    })
+  })
+
+  promiseIt("should resolve find() to distinct instances outside " +
+      "transaction", () => {
+    return entityManager.find(Entity, 1).then((entity) => {
+      return entityManager.find(Entity, 1).then(entity2 => [entity, entity2])
+    }).then(([entity1, entity2]) => {
+      expect(entity1).not.toBe(entity2)
+      expect(entity1.id).toBe(1)
+      expect(entity2.id).toBe(1)
+    })
+  })
+
+  promiseIt("should resolve find() to the contained entity", () => {
+    return entityManager.runTransaction(() => {
+      return Promise.all([
+        entityManager.find(Entity, 1),
+        entityManager.find(Entity, 1)
+      ])
+    }).then(([entity1, entity2]) => {
+      expect(entity1).toBe(entity2)
+      expect(entity1.id).toBe(1)
+
+      return entityManager.find(Entity, 1).then(entity => [entity, entity1])
+    }).then(([entity1, entity2]) => {
+      expect(entity1).toBe(entity2)
+    })
+  })
+
+  promiseIt("should perform read queries", () => {
+    return entityManager.query(Entity).then((entities) => {
+      expect(entities instanceof Array).toBeTruthy()
+      expect(entities.length).toBe(2)
+      expect(entities.every(entity => entity instanceof Entity)).toBeTruthy()
+      expect(entities.some((entity) => {
+        return entityManager.contains(entity)
+      })).toBeFalsy()
+      expect(entities.some((entity) => {
+        return entityManager.containsByPrimaryKey(Entity, entity.id)
+      })).toBeFalsy()
+
+      return entityManager.query(Entity, { id: 2 })
+    }).then((entities) => {
+      expect(entities.length).toBe(1)
+      expect(entities[0].id).toBe(2)
+
+      return entityManager.query(Entity, null, ["!id"])
+    }).then((entities) => {
+      expect(entities[0].id).toBe(2)
+      expect(entities[1].id).toBe(1)
+
+      return entityManager.query(Entity, null, null, 1)
+    }).then((entities) => {
+      expect(entities.length).toBe(1)
+      expect(entities[0].id).toBe(2)
+
+      return entityManager.query(Entity, null, null, 0, 1)
+    }).then((entities) => {
+      expect(entities.length).toBe(1)
+      expect(entities[0].id).toBe(1)
+    })
+  })
+
+  promiseIt("should use the same entity store for find() and query()", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1).then((entity) => {
+        return entityManager.query(Entity, 1).then(([entity2]) => {
+          return [entity, entity2]
+        })
+      }).then(([entity1, entity2]) => {
+        expect(entity1).toBe(entity2)
+
+        return entityManager.query(Entity, 2)
+      }).then(([entity]) => {
+        return entityManager.find(Entity, 2).then(entity2 => [entity, entity2])
+      }).then(([entity1, entity2]) => {
+        expect(entity1).toBe(entity2)
+      })
     })
   })
 
