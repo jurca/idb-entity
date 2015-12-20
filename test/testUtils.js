@@ -1,6 +1,7 @@
 
-export function promiseIt(behavior, test) {
-  it(behavior, (done) => {
+export function promiseIt(behavior, test, force = false) {
+  let testFunction = force ? fit : it
+  testFunction(behavior, (done) => {
     test().then(done).catch((error) => {
       fail(error)
       done()
