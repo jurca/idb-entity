@@ -118,8 +118,9 @@ export default class WriteOperationsProvider {
     }).then(() => {
       let entityManager = this[PRIVATE.entityManager]
       if (entityManager.containsByPrimaryKey(entityClass, primaryKey)) {
-        let entity = entityManager.find(entityClass, primaryKey)
-        entityManager.detach(entity)
+        return entityManager.find(entityClass, primaryKey).then((entity) => {
+          entityManager.detach(entity)
+        })
       }
     })
   }

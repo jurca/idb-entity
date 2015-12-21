@@ -123,7 +123,7 @@ describe("WriteOperationsProvider", () => {
           findCalled++
           expect(entityClass).toBe(Entity)
           expect(primaryKey).toBe(1)
-          return { myKey: 123987 }
+          return Promise.resolve({ myKey: 123987 })
         }
 
         detach(entity) {
