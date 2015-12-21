@@ -10,6 +10,9 @@
  * entities are to be stored. Object stores must not be shared among entity
  * classes.
  *
+ * Note that an entity must not contain a circular reference to itself.
+ * Circular references within the entity are allowed.
+ *
  * @abstract
  */
 export default class AbstractEntity {
