@@ -665,13 +665,13 @@ export default class EntityManager {
 
     if (entities.has(serializedKey)) {
       if (entityData instanceof AbstractEntity) {
+        // this shouldn't happen, but just in case...
         throw new Error("It appears an attempt was made to add multiple " +
             "instances of the same entity into the persistence context of a " +
-            "single entity manager, probably using by using the persist() " +
-            "method on two entities with the same object store and primary " +
-            "key. This is a persistence conflict and the latter entity will " +
-            "be rejected. To merge the state of these entities into a " +
-            "single persistence context, use the merge() method instead.")
+            "single entity manager. This is a persistence conflict and the " +
+            "latter entity will be rejected. To merge the state of these " +
+            "entities into a single persistence context, use the merge() " +
+            "method instead.")
       }
       return entities.get(serializedKey).entity
     }
