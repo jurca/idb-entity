@@ -113,7 +113,8 @@ export default class EntityManager {
    */
   contains(entity) {
     if (!(entity instanceof AbstractEntity)) {
-      throw new TypeError("The entity must be an AbstractEntity instance")
+      throw new TypeError("The entity must be an AbstractEntity instance, " +
+          `${entity} provided`)
     }
     let entityClass = entity.constructor
     validateEntityClass(entityClass)
@@ -511,7 +512,8 @@ export default class EntityManager {
    */
   detach(entity) {
     if (!(entity instanceof AbstractEntity)) {
-      throw new TypeError("The entity must be an AbstractEntity instance")
+      throw new TypeError("The entity must be an AbstractEntity instance, " +
+          `${entity} provided`)
     }
     let entityClass = entity.constructor
     validateEntityClass(entityClass)
