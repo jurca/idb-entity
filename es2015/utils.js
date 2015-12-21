@@ -67,7 +67,13 @@ export function getPrimaryKey(entity, keyPath) {
     return keyPath.map(fieldPath => getField(entity, fieldPath))
   }
   
-  return getField(entity, keyPath)
+  let key = getField(entity, keyPath)
+  if (key === undefined) {
+    throw new Error(`The provided entity (${entity}) does not have its ` +
+        `primary key set, the "${keyPath}" field path is not set`)
+  }
+
+  return key
 }
 
 /**
