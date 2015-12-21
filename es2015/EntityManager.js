@@ -61,7 +61,7 @@ export default class EntityManager {
      * classes to a map of serialized entity primary keys to entity source data
      * and entity instances.
      *
-     * @type {Map<function(new: AbstractEntity, Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>}
+     * @type {Map<function(new: AbstractEntity, Object<string, *>), Map<string, {data: *, entity: AbstractEntity, foreign: boolean=}>>}
      */
     this[PRIVATE.entities] = new Map()
 
@@ -534,6 +534,10 @@ export default class EntityManager {
    * Merges the state of the provided entity into the persistence context of
    * this entity manager.
    *
+   * This method can be used only within a transaction because merging an
+   * entity into the persistence context would have no effect outside a
+   * transaction.
+   *
    * @template {T} extends AbstractEntity
    * @param {T} entity The entity to merge into the persistence context.
    * @return {T} An entity managed by this entity manager, with its state set
@@ -545,6 +549,12 @@ export default class EntityManager {
     }
     var entityClass = entity.constructor
     validateEntityClass(entityClass)
+
+    if (!this[PRIVATE.activeTransaction]) {
+      throw new Error("There is no transaction active on this entity " +
+          "manager, merging an entity into the persistence context would " +
+          "not have any effect.")
+    }
 
     if (this.contains(entity)) {
       return entity // nothing to do
@@ -559,7 +569,7 @@ export default class EntityManager {
     let primaryKey = getPrimaryKey(entity, keyPath)
 
     if (!this.containsByPrimaryKey(entityClass, primaryKey)) {
-      return this[PRIVATE.manage](entityClass, keyPath, entity)
+      return this[PRIVATE.manage](entityClass, keyPath, entity, true)
     }
 
     let entityClone = clone(entity)
@@ -647,10 +657,12 @@ export default class EntityManager {
    * @param {(Object<string, *>|T)} entityData The record containing the data
    *        from which the entity should be constructed, or an existing entity
    *        to manage.
+   * @param {boolean=} foreignEntity Whether the entity is foreign (its state
+   *        in the database is not known).
    * @return {T} The already managed entity or a newly created managed entity
    *         created out of the provided data.
    */
-  [PRIVATE.manage](entityClass, keyPath, entityData) {
+  [PRIVATE.manage](entityClass, keyPath, entityData, foreignEntity = false) {
     if (!this[PRIVATE.entities].has(entityClass)) {
       this[PRIVATE.entities].set(entityClass, new Map())
     }
@@ -678,10 +690,14 @@ export default class EntityManager {
       return entities.get(serializedKey).entity
     }
 
-    entities.set(serializedKey, {
+    let entry = {
       data: clone(entityData),
       entity
-    })
+    }
+    if (foreignEntity) {
+      entry.foreign = true
+    }
+    entities.set(serializedKey, entry)
 
     return entity
   }

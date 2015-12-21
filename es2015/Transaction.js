@@ -42,7 +42,7 @@ export default class Transaction {
    *        transaction.
    * @param {Promise<TransactionRunner>} transactionRunnerPromise The promise
    *        that will resolve to a transaction runner for this transaction.
-   * @param {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>} entities
+   * @param {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity, foreign: boolean=}>>} entities
    *        Registry of currently managed entities. The registry is a map of
    *        entity classes to a map of serialized entity primary keys to entity
    *        source data and entity instances.
@@ -85,7 +85,7 @@ export default class Transaction {
      * classes to a map of serialized entity primary keys to entity source data
      * and entity instances.
      *
-     * @type {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity}>>}
+     * @type {Map<function(new: AbstractEntity, data: Object<string, *>), Map<string, {data: *, entity: AbstractEntity, foreign: boolean=}>>}
      */
     this[PRIVATE.entities] = entities
 
@@ -161,8 +161,8 @@ export default class Transaction {
 
     // save the modified entities
     for (let entities of this[PRIVATE.entities].values()) {
-      for (let {data, entity} of entities.values()) {
-        if (equals(entity, data)) {
+      for (let {data, entity, foreign} of entities.values()) {
+        if (!foreign && equals(entity, data)) {
           continue // the entity has not been modified
         }
 
