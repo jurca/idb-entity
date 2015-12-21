@@ -226,7 +226,7 @@ describe("WriteOperationsProvider", () => {
           expect(entityClass).toBe(Entity)
           expect(primaryKey).toBeGreaterThan(0)
           expect(primaryKey).toBeLessThan(3)
-          return { myKey: 123987 }
+          return Promise.resolve({ myKey: 123987 })
         }
 
         detach(entity) {

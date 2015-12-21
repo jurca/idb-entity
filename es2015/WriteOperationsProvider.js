@@ -227,8 +227,12 @@ export default class WriteOperationsProvider {
               return
             }
 
-            let entity = entityManager.find(entityClass, primaryKey)
-            entityManager.detach(entity)
+            return entityManager.find(
+              entityClass,
+              primaryKey
+            ).then((entity) => {
+              entityManager.detach(entity)
+            })
           })
         })).then(() => records.length)
       }).then(resolve).catch(reject)

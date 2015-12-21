@@ -320,7 +320,9 @@ describe("Transaction", () => {
         }
 
         find(_, key) {
-          return entities.get(Entity).get(serializeKey(key)).entity
+          return Promise.resolve(
+            entities.get(Entity).get(serializeKey(key)).entity
+          )
         }
       }),
       Promise.resolve(runner),
