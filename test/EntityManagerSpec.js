@@ -5,7 +5,7 @@ import EntityManager from "../es2015/EntityManager"
 import Transaction from "../es2015/Transaction"
 import {promiseIt, delay} from "./testUtils"
 
-describe("Entity manager", () => {
+fdescribe("Entity manager", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
@@ -290,6 +290,57 @@ describe("Entity manager", () => {
       }).then(([entity1, entity2]) => {
         expect(entity1).toBe(entity2)
       })
+    })
+  })
+
+  promiseIt("should persist new entities", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.persist(new Entity({})).then((entity) => {
+        expect(entityManager.contains(entity)).toBeTruthy()
+        let {id} = entity
+        expect(entityManager.containsByPrimaryKey(Entity, id)).toBeTruthy()
+        return entity
+      })
+    }).then((entity) => {
+      return entityManager.find(Entity, 3).then(entity2 => [entity, entity2])
+    }).then(([entity1, entity2]) => {
+      expect(entity1).toEqual(entity2)
+      expect(entity1).not.toBe(entity2)
+    })
+  })
+
+  promiseIt("should persist an entity outside a transaction", () => {
+    return entityManager.persist(new Entity()).then((entity) => {
+      return entityManager.find(Entity, entity.id).then((entity2) => {
+        return [entity, entity2]
+      })
+    }).then(([entity1, entity2]) => {
+      expect(entity1).toEqual(entity2)
+      expect(entity1).not.toBe(entity2)
+    })
+  })
+
+  promiseIt("must not persist the same entity multiple times", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.persist(new Entity({ id: 6 })).then(() => {
+        return entityManager.persist(new Entity({ id: 6 }))
+      })
+    }).then(() => {
+      throw new Error("fail this test")
+    }).catch((error) => {
+      expect(error.message).not.toBe("fail this test")
+    })
+  })
+
+  promiseIt("should use shared context for find() and persist()", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.persist(new Entity({})).then((entity) => {
+        return entityManager.find(Entity, entity.id).then((entity2) => {
+          return [entity, entity2]
+        })
+      })
+    }).then(([entity1, entity2]) => {
+      expect(entity1).toBe(entity2)
     })
   })
 
