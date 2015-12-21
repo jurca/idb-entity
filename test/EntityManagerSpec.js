@@ -344,4 +344,83 @@ fdescribe("Entity manager", () => {
     })
   })
 
+  promiseIt("should remove existing entities", () => {
+    return entityManager.remove(Entity, 1).then(() => {
+      return entityManager.find(Entity, 1)
+    }).then((entity) => {
+      expect(entity).toBeNull()
+    })
+  })
+
+  promiseIt("should do nothing when removing non-existing entities", () => {
+    return entityManager.remove(Entity, -1).then(() => {
+      return entityManager.query(Entity)
+    }).then((entities) => {
+      expect(entities.length).toBe(2)
+    })
+  })
+
+  promiseIt("should remove deleted entities from the persistence context",
+      () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1).then((entity) => {
+        expect(entityManager.contains(entity)).toBeTruthy()
+
+        return entityManager.remove(Entity, 1).then(() => entity)
+      }).then((entity) => {
+        expect(entityManager.contains(entity)).toBeFalsy()
+      })
+    })
+  })
+
+  promiseIt("should perform update queries", () => {
+    return entityManager.updateQuery(Entity, 2)((entity) => {
+      expect(entity instanceof Entity).toBeTruthy()
+      expect(entity.id).toBe(2)
+      entity.marked1 = 1
+    }).then((updatedCount) => {
+      expect(updatedCount).toBe(1)
+
+      return entityManager.query(Entity, { marked1: 1 })
+    }).then((matchingEntities) => {
+      expect(matchingEntities.length).toBe(1)
+
+      return entityManager.updateQuery(
+        Entity,
+        null,
+        "prev",
+        0,
+        1
+      )((entity) => {
+        entity.marked2 = "foo"
+      })
+    }).then((updatedEntitiesCount) => {
+      expect(updatedEntitiesCount).toBe(1)
+
+      return entityManager.query(Entity, { marked2: "foo" })
+    }).then((entities) => {
+      expect(entities.length).toBe(1)
+    })
+  })
+
+  promiseIt("should use shared persistence context between find() and " +
+      "updateQuery()", () => {
+    let entity2
+    return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1).then((entity1) => {
+        return entityManager.updateQuery(Entity, 1)((entity) => {
+          expect(entity).toBe(entity1)
+        })
+      }).then(() => {
+        return entityManager.updateQuery(Entity, 2)((entity) => {
+          entity2 = entity
+        })
+      }).then(() => {
+        return entityManager.find(Entity, 2)
+      }).then((entity) => {
+        expect(entity).toBe(entity2)
+      })
+    })
+  })
+
 })
