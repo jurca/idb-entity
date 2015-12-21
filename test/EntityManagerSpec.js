@@ -5,7 +5,7 @@ import EntityManager from "../es2015/EntityManager"
 import Transaction from "../es2015/Transaction"
 import {promiseIt, delay} from "./testUtils"
 
-fdescribe("Entity manager", () => {
+describe("Entity manager", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
@@ -419,6 +419,113 @@ fdescribe("Entity manager", () => {
         return entityManager.find(Entity, 2)
       }).then((entity) => {
         expect(entity).toBe(entity2)
+      })
+    })
+  })
+
+  promiseIt("should execute delete queries", () => {
+    let entity1, entity2
+    return entityManager.runTransaction(() => {
+      return entityManager.query(Entity).then((entities) => {
+        [entity1, entity2] = entities
+        expect(entityManager.contains(entity1)).toBeTruthy()
+        expect(entityManager.contains(entity2)).toBeTruthy()
+
+        return entityManager.deleteQuery(Entity, null, "!id", 1, 10)
+      }).then((deletedCount) => {
+        expect(deletedCount).toBe(1)
+        expect(entityManager.contains(entity1)).toBeFalsy()
+        expect(entityManager.contains(entity2)).toBeTruthy()
+      })
+    })
+  })
+
+  promiseIt("should run delete queries also outside transactions", () => {
+    return entityManager.deleteQuery(Entity, { id: 1 }).then((count) => {
+      expect(count).toBe(1)
+
+      return entityManager.query(Entity)
+    }).then((entities) => {
+      expect(entities.length).toBe(1)
+    })
+  })
+
+  promiseIt("should allow detaching entities", () => {
+    return entityManager.runTransaction(() => {
+      entityManager.find(Entity, 1).then((entity) => {
+        expect(entityManager.contains(entity)).toBeTruthy()
+        expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeTruthy()
+
+        entityManager.detach(entity)
+        expect(entityManager.contains(entity)).toBeFalsy()
+        expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeFalsy()
+      })
+    })
+  })
+
+  it("must not allow merging entities outside a transaction", () => {
+    expect(() => {
+      entityManager.merge(new Entity({}))
+    }).toThrow()
+  })
+
+  promiseIt("should merge entities within a transaction", () => {
+    return entityManager.runTransaction(() => {
+      let entity = entityManager.merge(new Entity({
+        id: 1,
+        stuff: "entity field"
+      }))
+      expect(entity).toEqual(new Entity({ id: 1, stuff: "entity field" }))
+
+      return entityManager.find(Entity, 1)
+    }).then((entity) => {
+      expect(entity).toEqual(new Entity({ id: 1, stuff: "entity field" }))
+
+      return entityManager.find(Entity, 1)
+    }).then((entity) => {
+      expect(entity).toEqual(new Entity({ id: 1, stuff: "entity field" }))
+    })
+  })
+
+  promiseIt("must reject merging entities without the primary key set", () => {
+    return entityManager.runTransaction(() => {
+      expect(() => {
+        entityManager.merge(new Entity({}))
+      }).toThrow()
+    })
+  })
+
+  promiseIt("should refresh entities", () => {
+    return entityManager.find(Entity, 1).then((entity) => {
+      expect(entity).toEqual(new Entity({ id: 1, bar: "baz" }))
+      entity.stuff = "foo"
+      entity.bar = "foo"
+
+      return entityManager.refresh(entity)
+    }).then((entity) => {
+      expect(entity).toEqual(new Entity({ id: 1, bar: "baz" }))
+
+      return entityManager.runTransaction(() => {
+        return entityManager.find(Entity, 1).then((entity) => {
+          entity.stuff = "foo"
+          entity.bar = "foo"
+
+          return entityManager.refresh(entity)
+        }).then((entity) => {
+          expect(entity).toEqual(new Entity({ id: 1, bar: "baz" }))
+        })
+      })
+    })
+  })
+
+  promiseIt("should clear its entity persistence context", () => {
+    return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1).then((entity) => {
+        expect(entityManager.contains(entity)).toBeTruthy()
+        expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeTruthy()
+        entityManager.clear()
+        expect(entityManager.contains(entity)).toBeFalsy()
+        expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeFalsy()
       })
     })
   })
