@@ -5,7 +5,7 @@ import EntityManager from "../es2015/EntityManager"
 import Transaction from "../es2015/Transaction"
 import {promiseIt, delay} from "./testUtils"
 
-fdescribe("Entity manager", () => {
+describe("Entity manager", () => {
 
   const DB_NAME = "testingDB"
   const OBJECT_STORE_NAME = "foo"
@@ -194,10 +194,22 @@ fdescribe("Entity manager", () => {
 
   promiseIt("should contain entities retrieved within a transaction", () => {
     return entityManager.runTransaction(() => {
+      return entityManager.find(Entity, 1).then((entity) => {
+        expect(entityManager.contains(entity)).toBeTruthy()
+        expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeTruthy()
+        return entity
+      })
+    }).then((entity) => {
+      expect(entityManager.contains(entity)).toBeFalsy()
+      expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeFalsy()
+    })
+  })
+
+  promiseIt("should not contain entities after transaction completes", () => {
+    return entityManager.runTransaction(() => {
       return entityManager.find(Entity, 1)
     }).then((entity) => {
-      expect(entityManager.contains(entity)).toBeTruthy()
-      expect(entityManager.containsByPrimaryKey(Entity, 1)).toBeTruthy()
+      expect(entityManager.contains(entity)).toBeFalsy()
     })
   })
 
@@ -224,7 +236,8 @@ fdescribe("Entity manager", () => {
 
       return entityManager.find(Entity, 1).then(entity => [entity, entity1])
     }).then(([entity1, entity2]) => {
-      expect(entity1).toBe(entity2)
+      // persistence context is cleared after transaction
+      expect(entity1).not.toBe(entity2)
     })
   })
 

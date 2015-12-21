@@ -270,11 +270,8 @@ export default class EntityManager {
    * for new records automatically, the entity will have its primary key set
    * when this operation completes.
    *
-   * The created entity will be managed by this entity manager. The entity will
-   * be persisted using the current transaction if there is one active.
-   *
-   * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted.
+   * The created entity will be managed by this entity manager for the duration
+   * of the current transaction.
    *
    * @template {T} extends AbstractEntity
    * @param {T} entity The entity to create in the database.
@@ -299,11 +296,6 @@ export default class EntityManager {
   /**
    * Deletes the specified entity. If the entity is managed by this entity
    * manager, it will become detached.
-   *
-   * The method will use the current transaction if there is one active.
-   *
-   * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -330,11 +322,6 @@ export default class EntityManager {
 
   /**
    * Updates the records matched by the specified query.
-   *
-   * The method will use the current transaction if there is one active.
-   *
-   * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted.
    *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
@@ -389,11 +376,6 @@ export default class EntityManager {
    * entities are currently managed by this entity manager, they will become
    * detached.
    *
-   * The method will use the current transaction if there is one active.
-   *
-   * Note that if any of the entities currently managed by this entity manager
-   * have been modified, their changes will be persisted.
-   *
    * @template {T} extends AbstractEntity
    * @param {function(new: T, data: Object<string, *>)} entityClass The entity
    *        class, specifying the type of entities to delete.
@@ -434,11 +416,17 @@ export default class EntityManager {
   }
 
   /**
-   * Starts a new transaction if there is not already one active.
+   * Starts a new transaction if there is not already one active. All entities
+   * that will become managed by this entity manager during the transaction
+   * will have their changes automatically persisted when the transaction is
+   * committed.
    *
    * Note that multiple simultaneous transactions cannot be started from the
    * same entity manager. The transaction will lock all object stores in the
    * database until the transaction completes.
+   *
+   * The persistence context of this entity manager will be cleared after the
+   * transaction completes (all entities will become detached).
    *
    * @return {Transaction} The started transaction.
    * @throws {Error} Thrown if there already is a transaction in progress on
@@ -469,6 +457,7 @@ export default class EntityManager {
       () => {
         this[PRIVATE.rwTransactionRunner] = null
         this[PRIVATE.activeTransaction] = null
+        this.clear()
       }
     )
 
