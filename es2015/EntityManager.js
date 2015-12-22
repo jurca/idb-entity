@@ -542,6 +542,13 @@ export default class EntityManager {
    * entity into the persistence context would have no effect outside a
    * transaction.
    *
+   * Note that if you attempt to use this method within a transaction started
+   * using the {@codelink startTransaction()} method instead of the
+   * {@codelink runTransaction()} method, especially while initializing the
+   * {@codelink EntityManagerFactory} with a database connection promise, this
+   * method may throw an error because the key paths of the database's object
+   * stores may not be loaded yet.
+   *
    * @template {T} extends AbstractEntity
    * @param {T} entity The entity to merge into the persistence context.
    * @return {T} An entity managed by this entity manager, with its state set
@@ -562,6 +569,16 @@ export default class EntityManager {
 
     if (this.contains(entity)) {
       return entity // nothing to do
+    }
+
+    if (!this[PRIVATE.entityKeyPaths].size) {
+      throw new Error("It appears that you have attempted to merge an " +
+          "entity into the persistence context before the entity manager " +
+          "has loaded the key paths of the object stores, therefore the " +
+          `primary key of the provided entity (${entity}) cannot be ` +
+          "determined. In order to prevent this error from happening, it is " +
+          "recommended to run transactions that merge entities into the " +
+          "persistence context using the runTransaction() method instead.")
     }
 
     if (!this[PRIVATE.entityKeyPaths].has(entityClass.objectStore)) {
