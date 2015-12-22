@@ -486,7 +486,10 @@ export default class EntityManager {
    */
   runTransaction(operations) {
     let transaction = this.startTransaction()
-    return Promise.resolve().then(() => {
+    // We must wait for the connection promise to resolve in case the
+    // operations would include merging entities into the persistence context
+    // so that we have the key paths loaded.
+    return this[PRIVATE.connection].then(() => {
       return operations(transaction)
     }).then((result) => {
       return transaction.commit().then(() => result)

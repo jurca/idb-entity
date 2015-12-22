@@ -58,13 +58,18 @@ export default class EntityManagerFactory {
   constructor(databaseConnection, options = {}) {
     let connectionPromise = databaseConnection instanceof Promise ?
         databaseConnection : Promise.resolve(databaseConnection)
+    let initializedConnectionPromise = connectionPromise.then((database) => {
+      this[PRIVATE.loadKeyPaths](database)
+
+      return database
+    })
     
     /**
      * The promise that provides a connection to the database.
      *
      * @type {Promise<Database>}
      */
-    this[PRIVATE.connection] = connectionPromise
+    this[PRIVATE.connection] = initializedConnectionPromise
 
     /**
      * The entity manager configuration.
@@ -82,14 +87,6 @@ export default class EntityManagerFactory {
     this[PRIVATE.entityKeyPaths] = new Map()
 
     Object.freeze(this)
-
-    if (databaseConnection instanceof Promise) {
-      databaseConnection.then((database) => {
-        this[PRIVATE.loadKeyPaths](database)
-      })
-    } else {
-      this[PRIVATE.loadKeyPaths](databaseConnection)
-    }
   }
 
   /**
