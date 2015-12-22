@@ -170,7 +170,7 @@ export default class EntityManagerFactory {
         } else {
           console.warn("Detected an idle pending transaction. The " +
               "transaction will be aborted unless a new operation is " +
-              "scheduled or the transaction is committed")
+              "scheduled or the transaction is committed.")
         }
       }
     }, providedOptions.idleTransactions)
