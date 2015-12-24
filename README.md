@@ -86,3 +86,61 @@ entityManagerFactory.close().then(() => {
   // the connection is now terminated
 })
 ```
+
+### Defining entity types
+
+The entity manager relies on typed entities instead of plain objects and object
+store names for practical reasons (this also makes code debugging easier). To
+define an entity type, create a new class that extends the `AbstractEntity`
+class and defines the static `objectStore` property:
+
+```javascript
+import AbstractEntity from "idb-entity/es2015/AbstractEntity"
+
+export default class FooBar extends AbstractEntity {
+  static get objectStore() {
+    return "fooBar" // must be a non-empty string
+  }
+}
+```
+
+The `objectStore` property defines the name of the Indexed DB object store the
+entity manager will use to store the entities of this type. The object stores
+must not be shared among entity types.
+
+The fact that entities are class instances allows for entities to have computed
+properties that are not stored in the database, thus ensuring easier data
+consistency and less storage usage. Another use of the entity classes is to
+add various utility methods:
+
+```javascript
+import AbstractEntity from "idb-entity/es2015/AbstractEntity"
+
+export default class FooBar extends AbstractEntity {
+  static get objectStore() {
+    return "fooBar"
+  }
+  
+  get age() {
+    let now = new Date();
+    let dob = this.dateOfBirth;
+    let diff = now.getFullYear() - dob.getFullYear()
+    if (now.getMonth() < dob.getMonth()) {
+      diff--
+    } else if (now.getMonth() === dob.getMonth()) {
+      if (now.getDate() < dob.getDate()) {
+        diff--
+      }
+    }
+    return diff
+  }
+  
+  toString() {
+    return `FooBar{name: ${this.name}, dob: ${this.dateOfBirth}}`
+  }
+  
+  fetchContacts() {
+    return ... // fetch contacts from storage, return promise
+  }
+}
+```
