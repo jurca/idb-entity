@@ -122,8 +122,8 @@ export default class FooBar extends AbstractEntity {
   }
   
   get age() {
-    let now = new Date();
-    let dob = this.dateOfBirth;
+    let now = new Date()
+    let dob = this.dateOfBirth
     let diff = now.getFullYear() - dob.getFullYear()
     if (now.getMonth() < dob.getMonth()) {
       diff--
@@ -144,3 +144,42 @@ export default class FooBar extends AbstractEntity {
   }
 }
 ```
+
+The `AbstractEntity` class also provides the default entity constructor which
+accepts a single plain object (`Object<string, *>`) and sets all its properties
+on the entity instance. In case an entity needs to override the default
+constructor, it is recommended to keep the first constructor parameter for
+passing the entity data and keep in mind that any other parameter will be most
+of the time `undefined` or set their default value (this is how the entity
+manager creates entity instances and sets data on them):
+
+```javascript
+import AbstractEntity from "idb-entity/es2015/AbstractEntity"
+
+export default class FooBar extends AbstractEntity {
+  static get objectStore() {
+    return "fooBar"
+  }
+  
+  constructor(data = {}, immutable = false) {
+    super(data)
+    
+    console.log("entity FooBar created", data)
+    
+    if (immutable) {
+      Object.freeze(this)
+    }
+  }
+}
+```
+
+Last but not least, the entities are stored in the Indexed DB as plain objects,
+and may contain any data and structures (including circular references)
+supported by the Structured clone algorithm
+([documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm),
+[specification](http://www.w3.org/html/wg/drafts/html/master/infrastructure.html#safe-passing-of-structured-data)).
+The only limitation is that an entity must always be an `AbstractEntity`
+instance (using primitive data types makes little sense with an entity
+manager) and an entity must not contain a circular reference to itself (this
+limitation is caused by the way the data is set on the entity, and may be
+removed in the future if deemed useful).
