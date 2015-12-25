@@ -317,7 +317,9 @@ registry of currently manipulated entities - during every transaction. Every
 entity that is fetched from the database within a transaction is automatically
 stored in the persistence context until it is removed from it (for example by
 completing the current transaction). This includes entities fetched by the
-`find()` method or the `query()` and `updateQuery()` methods.
+`find()` method or the `query()` and `updateQuery()` methods. This also ensures
+that each entity is always represented by only a single instance no matter how
+many times and how it is retrieved.
 
 Entities are also removed from the persistence context when they are removed
 from the database either by the `remove()` method or the `deleteQuery()`
@@ -385,6 +387,46 @@ be aborted simply by throwing an error or rejecting the returned promise:
 ```javascript
 entityManager.runTransaction((transaction) => {
   return Promise.reject(new Error("Aborting the transaction"))
+})
+```
+
+### Manipulating the persistence context
+
+It is possible to manipulate the persistence context while in transaction.
+Entity states can be merged using the `merge()` method, which updates the state
+of the managed entity of the same type and primary key to the state of the
+provided entity:
+
+```javascript
+entityManager.runTransaction(() => {
+  // do some stuff
+  
+  let managedEntity = entityManager.merge(someDetachedEntity)
+})
+```
+
+The `merge()` method creates a new, managed, copy of the provided entity if an
+entity that matches the provided one is not present in the persistence context.
+
+To detach a managed entity from the persistence context, use the `detach()`
+method:
+
+```javascript
+entityManager.runTransaction(() => {
+  // do some stuff
+  
+  entityManager.detach(managedEntity)
+})
+```
+
+Finally, to completely clear the persistence context (this happens
+automatically every time a transaction ends) use the `clear()` method:
+
+```javascript
+entityManager.runTransaction(() => {
+  // do some stuff
+  
+  entityManager.clear()
 })
 ```
 
