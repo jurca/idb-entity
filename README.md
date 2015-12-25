@@ -227,6 +227,15 @@ The query API is quite powerful, you can learn more about it at the
 indexed-db.es6
 [wiki](https://github.com/jurca/indexed-db.es6/wiki/Running-queries).
 
+It is also possible to reload an entity from the database:
+
+```javascript
+entityManager.refresh(entity).then((refreshedEntity) => {
+  entity === refreshedEntity // true
+  // do something
+})
+```
+
 ### Saving and deleting single entities
 
 Entities can be saved in the database using the `persist()` method:
