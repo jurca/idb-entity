@@ -1,6 +1,8 @@
 # idb-entity
 
 [![Build Status](https://travis-ci.org/jurca/idb-entity.svg?branch=master)](https://travis-ci.org/jurca/idb-entity)
+[![npm](http://img.shields.io/npm/v/idb-entity.svg)](https://www.npmjs.com/package/idb-entity)
+[![License](https://img.shields.io/npm/l/idb-entity)](LICENSE)
 
 The idb-entity is an ORM-like Entity manager for the HTML5
 [IndexedDB](http://www.w3.org/TR/IndexedDB/). The idb-entity has
