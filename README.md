@@ -97,82 +97,6 @@ The `objectStore` property defines the name of the Indexed DB object store the
 entity manager will use to store the entities of this type. The object stores
 must not be shared among entity types.
 
-The fact that entities are class instances allows for entities to have computed
-properties that are not stored in the database, thus ensuring easier data
-consistency and less storage usage. Another use of the entity classes is to
-add various utility methods:
-
-```javascript
-import AbstractEntity from "idb-entity/es2015/AbstractEntity"
-
-export default class FooBar extends AbstractEntity {
-  static get objectStore() {
-    return "fooBar"
-  }
-  
-  get age() {
-    let now = new Date()
-    let dob = this.dateOfBirth
-    let diff = now.getFullYear() - dob.getFullYear()
-    if (now.getMonth() < dob.getMonth()) {
-      diff--
-    } else if (now.getMonth() === dob.getMonth()) {
-      if (now.getDate() < dob.getDate()) {
-        diff--
-      }
-    }
-    return diff
-  }
-  
-  toString() {
-    return `FooBar{name: ${this.name}, dob: ${this.dateOfBirth}}`
-  }
-  
-  fetchContacts() {
-    return ... // fetch contacts from storage, return promise
-  }
-}
-```
-
-The `AbstractEntity` class also provides the default entity constructor which
-accepts a single plain object (`Object<string, *>`) and sets all its properties
-on the entity instance. In case an entity needs to override the default
-constructor, it is recommended to keep the first constructor parameter for
-passing the entity data and keep in mind that any other parameter will be most
-of the time `undefined` or set their default value (this is how the entity
-manager creates entity instances and sets data on them):
-
-```javascript
-import AbstractEntity from "idb-entity/es2015/AbstractEntity"
-
-export default class FooBar extends AbstractEntity {
-  static get objectStore() {
-    return "fooBar"
-  }
-  
-  constructor(data = {}, immutable = false) {
-    super(data)
-    
-    console.log("entity FooBar created", data)
-    
-    if (immutable) {
-      Object.freeze(this)
-    }
-  }
-}
-```
-
-Last but not least, the entities are stored in the Indexed DB as plain objects,
-and may contain any data and structures (including circular references)
-supported by the Structured clone algorithm
-([documentation](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm),
-[specification](http://www.w3.org/html/wg/drafts/html/master/infrastructure.html#safe-passing-of-structured-data)).
-The only limitation is that an entity must always be an `AbstractEntity`
-instance (using primitive data types makes little sense with an entity
-manager) and an entity must not contain a circular reference to itself (this
-limitation is caused by the way the data is set on the entity, and may be
-removed in the future if deemed useful).
-
 ### Getting an entity manager
 
 The entity manager is used to handle entity manipulation. To get an instance of
@@ -312,18 +236,8 @@ entityManager.runTransaction(() => {
 })
 ```
 
-So how does this work? The entity manager uses a persistence context - a
-registry of currently manipulated entities - during every transaction. Every
-entity that is fetched from the database within a transaction is automatically
-stored in the persistence context until it is removed from it (for example by
-completing the current transaction). This includes entities fetched by the
-`find()` method or the `query()` and `updateQuery()` methods. This also ensures
-that each entity is always represented by only a single instance no matter how
-many times and how it is retrieved.
-
-Entities are also removed from the persistence context when they are removed
-from the database either by the `remove()` method or the `deleteQuery()`
-method.
+So how does this work? The entity manager keeps track of entities used within a
+transaction using its persistence context.
 
 When a transaction is to be committed, the entity manager determines which
 entities in its persistence context have been modified, and saved the modified
@@ -332,103 +246,9 @@ ones into the database.
 Likewise, if a transaction is aborted, the entity manager reverts any
 modifications done to the entities in its persistence context.
 
-There is another, less preferred, way of running transactions - using the
-`startTransaction()` method:
-
-```javascript
-let transaction = entityManager.startTransaction()
-entityManager.find(FooBar, primaryKey).then((entity) => {
-  // modify the entity
-  
-  return transaction.commit()
-}).then(() => {
-  // the transaction has been committed
-})
-```
-
-The disadvantage of this approach is that you are required to manually commit
-your transaction (that's right, unlike the native Indexed DB transactions, the
-entity manager's transactions remain active even when no operations are
-pending). While manually committing transactions may be inconvenient, it allows
-for all operations to be safely wrapped in asynchronous promises (unlike
-in-transaction operations of Indexed DB which rely on synchronous request
-objects and indexed-db.es6 which uses synchronous promises (`PromiseSync`)).
-
-By accessing the transaction object, it is relatively easy to abort the
-transaction manually if needed:
-
-```javascript
-let transaction = entityManager.startTransaction()
-transaction.abort().catch((error) => {
-  if (error.name === "AbortError") {
-    // transaction has been aborted
-  } else {
-    // an unexpected error has occurred
-  }
-})
-```
-
-The promise returned by the `abort()` method is always rejected with an error,
-which makes sense since the transaction is usually aborted due to an error or
-some unexpected situation.
-
-The transaction object can be, however, accessed even in transactions run using
-the `runTransaction()` method:
-
-```javascript
-entityManager.runTransaction((transaction) => {
-  return transaction.abort()
-})
-```
-
-To make things simpler, a transaction ran by the `runTransaction()` method can
-be aborted simply by throwing an error or rejecting the returned promise:
-
-```javascript
-entityManager.runTransaction((transaction) => {
-  return Promise.reject(new Error("Aborting the transaction"))
-})
-```
-
-### Manipulating the persistence context
-
-It is possible to manipulate the persistence context while in transaction.
-Entity states can be merged using the `merge()` method, which updates the state
-of the managed entity of the same type and primary key to the state of the
-provided entity:
-
-```javascript
-entityManager.runTransaction(() => {
-  // do some stuff
-  
-  let managedEntity = entityManager.merge(someDetachedEntity)
-})
-```
-
-The `merge()` method creates a new, managed, copy of the provided entity if an
-entity that matches the provided one is not present in the persistence context.
-
-To detach a managed entity from the persistence context, use the `detach()`
-method:
-
-```javascript
-entityManager.runTransaction(() => {
-  // do some stuff
-  
-  entityManager.detach(managedEntity)
-})
-```
-
-Finally, to completely clear the persistence context (this happens
-automatically every time a transaction ends) use the `clear()` method:
-
-```javascript
-entityManager.runTransaction(() => {
-  // do some stuff
-  
-  entityManager.clear()
-})
-```
+The transaction run using the `runTransaction()` method is committed when the
+promised returned from the passed-in callback is resolved. The transaction will
+be aborted if the returned promise is rejected.
 
 ## API Documentation
 
