@@ -250,6 +250,38 @@ entityManager.remove(FooBar /* entity class */, primaryKey).then(() => {
 })
 ```
 
+### Updating and deleting groups of entities
+
+Groups of entities can be easily modified using the `updateQuery()` method:
+
+```javascript
+entityManager.updateQuery(
+  FooBar /* entity class */,
+  optionalFilter,
+  optionalOrderBy,
+  optionalOffset,
+  optionalLimit
+)((entity) => {
+  // modify the entity as needed, there is no need to return the entity
+}).then((updatedEntitiesCount) => {
+  // do something
+})
+```
+
+To delete a group of entities, use the `deleteQuery()` method:
+
+```javascript
+entityManager.deleteQuery(
+  FooBar /* entity class */,
+  optionalFilter,
+  optionalOrderBy,
+  optionalOffset,
+  optionalLimit
+).then((deletedEntitiesCount) => {
+   // do something
+ })
+```
+
 ## API Documentation
 
 The source code is well documented using [JSDoc](http://usejsdoc.org/) docblock
