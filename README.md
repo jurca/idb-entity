@@ -227,6 +227,29 @@ The query API is quite powerful, you can learn more about it at the
 indexed-db.es6
 [wiki](https://github.com/jurca/indexed-db.es6/wiki/Running-queries).
 
+### Saving and deleting single entities
+
+Entities can be saved in the database using the `persist()` method:
+
+```javascript
+let entity = new FooBar({
+  foo: "bar",
+  created: new Date()
+})
+entityManager.persist(entity).then((savedEntity) => {
+  entity === savedEntity // true
+  // the entity will have its primary key set on its key path
+})
+```
+
+To delete a previously created entity, use the `remove()` method:
+
+```javascript
+entityManager.remove(FooBar /* entity class */, primaryKey).then(() => {
+  // the entity has been deleted
+})
+```
+
 ## API Documentation
 
 The source code is well documented using [JSDoc](http://usejsdoc.org/) docblock
