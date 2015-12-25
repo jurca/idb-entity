@@ -317,7 +317,7 @@ registry of currently manipulated entities - during every transaction. Every
 entity that is fetched from the database within a transaction is automatically
 stored in the persistence context until it is removed from it (for example by
 completing the current transaction). This includes entities fetched by the
-`find()` method or the `query()` / `updateQuery()` methods.
+`find()` method or the `query()` and `updateQuery()` methods.
 
 Entities are also removed from the persistence context when they are removed
 from the database either by the `remove()` method or the `deleteQuery()`
@@ -329,6 +329,64 @@ ones into the database.
 
 Likewise, if a transaction is aborted, the entity manager reverts any
 modifications done to the entities in its persistence context.
+
+There is another, less preferred, way of running transactions - using the
+`startTransaction()` method:
+
+```javascript
+let transaction = entityManager.startTransaction()
+entityManager.find(FooBar, primaryKey).then((entity) => {
+  // modify the entity
+  
+  return transaction.commit()
+}).then(() => {
+  // the transaction has been committed
+})
+```
+
+The disadvantage of this approach is that you are required to manually commit
+your transaction (that's right, unlike the native Indexed DB transactions, the
+entity manager's transactions remain active even when no operations are
+pending). While manually committing transactions may be inconvenient, it allows
+for all operations to be safely wrapped in asynchronous promises (unlike
+in-transaction operations of Indexed DB which rely on synchronous request
+objects and indexed-db.es6 which uses synchronous promises (`PromiseSync`)).
+
+By accessing the transaction object, it is relatively easy to abort the
+transaction manually if needed:
+
+```javascript
+let transaction = entityManager.startTransaction()
+transaction.abort().catch((error) => {
+  if (error.name === "AbortError") {
+    // transaction has been aborted
+  } else {
+    // an unexpected error has occurred
+  }
+})
+```
+
+The promise returned by the `abort()` method is always rejected with an error,
+which makes sense since the transaction is usually aborted due to an error or
+some unexpected situation.
+
+The transaction object can be, however, accessed even in transactions run using
+the `runTransaction()` method:
+
+```javascript
+entityManager.runTransaction((transaction) => {
+  return transaction.abort()
+})
+```
+
+To make things simpler, a transaction ran by the `runTransaction()` method can
+be aborted simply by throwing an error or rejecting the returned promise:
+
+```javascript
+entityManager.runTransaction((transaction) => {
+  return Promise.reject(new Error("Aborting the transaction"))
+})
+```
 
 ## API Documentation
 
