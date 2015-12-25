@@ -203,6 +203,41 @@ single instance be shared across the whole application - this would most likely
 lead to data consistency issues and errors caused by attempting to start
 multiple (read-write) transactions on the same entity manager.
 
+Note that the entity manager manages entities in a persistence context only
+while a transaction is active, because the data consistency is impossible to
+assure outside a transaction. The entity manager's persistence context is
+automatically cleared after a transaction is ended.
+
+### Fetching entities
+
+The entity manager allows you to fetch entities from an Indexed DB database
+without having to explicitly start a new transaction. Single records can be
+fetched using the `find()` method:
+
+```javascript
+entityManager.find(FooBar /* entity class */, primaryKey).then((entity) => {
+  // do something
+})
+```
+
+It is also possible to execute high-level queries on an entity object store:
+
+```javascript
+entityManager.query(
+  FooBar /* entity class */,
+  optionalFilter,
+  optionalOrderBy,
+  optionalOffset,
+  optionalLimit
+).then((entities) => {
+  // do something
+})
+```
+
+The query API is quite powerful, you can learn more about it at the
+indexed-db.es6
+[wiki](https://github.com/jurca/indexed-db.es6/wiki/Running-queries).
+
 ## API Documentation
 
 The source code is well documented using [JSDoc](http://usejsdoc.org/) docblock
