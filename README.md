@@ -183,3 +183,55 @@ instance (using primitive data types makes little sense with an entity
 manager) and an entity must not contain a circular reference to itself (this
 limitation is caused by the way the data is set on the entity, and may be
 removed in the future if deemed useful).
+
+### Getting an entity manager
+
+The entity manager is used to handle entity manipulation. To get an instance of
+the entity manager, use the `createEntityManager()` method:
+
+```javascript
+let entityManager = entityManagerFactory.createEntityManager()
+```
+
+Every entity manager instance should be used only for a single operation (for
+example reacting to a user action or a message received from the server). Once
+the operation at hand has been handled, the entity manager instance should be
+discarded.
+
+Entity manager instances should never be used between operations, nor should a
+single instance be shared across the whole application - this would most likely
+lead to data consistency issues and errors caused by attempting to start
+multiple (read-write) transactions on the same entity manager.
+
+## API Documentation
+
+The source code is well documented using [JSDoc](http://usejsdoc.org/) docblock
+comments. Go ahead and
+[take a look](https://github.com/jurca/idb-entity/tree/master/es2015)!
+
+## Browser support
+
+The browser compatibility is provided by the
+[indexed-db.es6](https://github.com/jurca/indexed-db.es6) library. To see the
+current browser compatibility, see the
+[library documentation](https://github.com/jurca/indexed-db.es6#browser-support).
+
+## The current state of this project
+
+There are no current plans for additional features (unless a good case for
+adding them is made), but the project accepts bug fixes if new bugs are
+discovered.
+
+## Contributing
+
+Time is precious, so, if you would like to contribute (bug fixing, test writing
+or feature addition), follow these steps:
+
+* fork
+* implement (follow the code style)
+* pull request
+* wait for approval/rejection of the pull request
+
+Filing a bug issue *might* get me to fix the bug, but filing a feature request
+will not as I don't have the time to work on this project full-time. Thank you
+for understanding.
