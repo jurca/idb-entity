@@ -61,18 +61,7 @@ import DBFactory from "indexed-db.es6/es2015/DBFactory"
 import EntityManagerFactory from "idb-entity/es2015/EntityManagerFactory"
 
 let connectionPromise = DBFactory.open("my database", {
-  version: 1,
-  objectStores: [{
-    name: "fooBar",
-    keyPath: null,
-    autoIncrement: true,
-    indexes: [{
-      name: "some index",
-      keyPath: "id",
-      unique: false,
-      multiEntry: true
-    }]
-  }]
+  ... // database schema goes here
 })
 
 let entityManagerFactory = new EntityManagerFactory(connectionPromise)
