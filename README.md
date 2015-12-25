@@ -291,6 +291,45 @@ entityManager.deleteQuery(
  })
 ```
 
+### Updating single records and running transactions
+
+To update a single record, it must be modified within a transaction. The
+preferred and safe way to run a transaction is using the `runTransaction()`
+method:
+
+```javascript
+entityManager.runTransaction(() => {
+  return entityManager.find(FooBar, primaryKey).then((entity) => {
+    entity.modified = true // example modification
+  })
+}).then(() => {
+  // transaction has ended and the entity has been saved
+  
+  // re-fetch the entity from the database
+  return entityManager.find(FooBar, primaryKey)
+}).then((entity) => {
+  entity.modified // true
+})
+```
+
+So how does this work? The entity manager uses a persistence context - a
+registry of currently manipulated entities - during every transaction. Every
+entity that is fetched from the database within a transaction is automatically
+stored in the persistence context until it is removed from it (for example by
+completing the current transaction). This includes entities fetched by the
+`find()` method or the `query()` / `updateQuery()` methods.
+
+Entities are also removed from the persistence context when they are removed
+from the database either by the `remove()` method or the `deleteQuery()`
+method.
+
+When a transaction is to be committed, the entity manager determines which
+entities in its persistence context have been modified, and saved the modified
+ones into the database.
+
+Likewise, if a transaction is aborted, the entity manager reverts any
+modifications done to the entities in its persistence context.
+
 ## API Documentation
 
 The source code is well documented using [JSDoc](http://usejsdoc.org/) docblock
